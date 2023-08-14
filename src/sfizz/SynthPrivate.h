@@ -204,6 +204,13 @@ struct Synth::Impl final: public Parser::Listener {
     void finalizeSfzLoad();
 
     /**
+     * @brief Actually save the current instrument state as a monolithic SFZ into.
+     *
+     * @param outStream to write the output to
+     */
+    bool writeSfzState(fs::ofstream & outStream) const;
+
+    /**
      * @brief Set the current keyswitch, taking into account octave offsets and the like.
      *
      * @param noteValue

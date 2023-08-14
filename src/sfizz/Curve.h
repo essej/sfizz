@@ -81,6 +81,15 @@ public:
         Interpolator itp = Interpolator::Linear, bool invert = false);
 
     /**
+     * @brief generate opcodes from curves, if originally built from a header,
+     *        only those points will be returned here.
+     *
+     * @param retOpcodes opcodes will be placed here
+     */
+    void generateOpcodes(std::vector<Opcode> & retOpcodes) const;
+
+    
+    /**
      * @brief Number of predefined curves
      */
     enum { NumPredefinedCurves = 7 };
@@ -112,6 +121,7 @@ private:
 
 private:
     std::array<float, NumValues> _points {{}};
+    std::vector<std::pair<int,float> > _origSpec;
 };
 
 /**
@@ -139,10 +149,18 @@ public:
      */
     void addCurveFromHeader(absl::Span<const Opcode> members);
 
+
+    
     /**
      * @brief Get a curve given its index
      */
     const Curve& getCurve(unsigned index) const;
+
+    /**
+     * @brief Get a curve given its index, only returns additional non-predefined curves
+     * @returns nullptr if index has not been added
+     */
+    const Curve* getRawCurve(unsigned index) const;
 
     /**
      * @brief Get the number of slots.
@@ -151,7 +169,7 @@ public:
     {
         return static_cast<unsigned>(_curves.size());
     }
-
+    
 private:
     std::vector<std::unique_ptr<Curve>> _curves;
     bool _useExplicitIndexing = false;

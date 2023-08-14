@@ -55,6 +55,11 @@ bool sfz::Sfizz::loadSfzString(const std::string& path, const std::string& text)
     return synth->synth.loadSfzString(path, text);
 }
 
+bool sfz::Sfizz::saveSfzFile(const std::string& path) const
+{
+    return synth->synth.saveSfzFile(path);
+}
+
 bool sfz::Sfizz::loadScalaFile(const std::string& path)
 {
     return synth->synth.loadScalaFile(path);

@@ -107,6 +107,13 @@ struct Opcode {
             category == kOpcodeStepCcN || category == kOpcodeSmoothCcN;
     }
 
+    /**
+     * @brief Returns the full opcode name and value
+     * @param quote whether to surround the value with double quotes
+     * @return the full string output of the opcode for serialization purposes
+     */
+    std::string toString(bool quote=false) const;
+    
     ///
     template <class T>
     absl::optional<T> readOptional(OpcodeSpec<T> spec) const { return readOptional(spec, value); }

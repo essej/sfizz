@@ -120,6 +120,21 @@ public:
      */
     bool loadSfzString(const fs::path& path, absl::string_view text);
     /**
+     * @brief Saves the contents of the currently loaded instrument to a new file
+     *
+     * The saved file will most likely not be the same as the loaded file (unless it was generated from this function),
+     * as it generates a monolithic SFZ from the internal region state. This can be used when
+     * changes were made to region properties (by an SFZ editor using this library, for example)
+     * and you want to save the changes you made. It makes a best effort to retain group/global/master
+     * hierarchy and outputs only the opcodes necessary, but it will not use any definitions or #includes
+     * like the original input might have.
+     * @param file
+     * @return true
+     * @return false if the file could not be written to this location
+     */
+    bool saveSfzFile(const fs::path& file) const;
+
+    /**
      * @brief Sets the tuning from a Scala file loaded from the file system.
      *
      * @param  path   The path to the file in Scala format.

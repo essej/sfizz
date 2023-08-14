@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <strstream>
 #include <random>
 #include <utility>
 
@@ -771,6 +772,7 @@ void Synth::Impl::finalizeSfzLoad()
 
         if (!region.isOscillator()) {
             region.sampleEnd = min(region.sampleEnd, fileInformation->end);
+            region.fileSampleEnd = fileInformation->end;
 
             if (fileInformation->hasLoop) {
                 if (region.loopRange.getStart() == Default::loopStart)
@@ -2410,5 +2412,310 @@ const Resources& Synth::getResources() const noexcept
     Impl& impl = *impl_;
     return impl.resources_;
 }
+
+bool Synth::saveSfzFile(const fs::path& file) const
+{
+    const Impl& impl = *impl_;
+    std::error_code ec;
+    fs::path realFile = fs::canonical(file, ec);
+    bool success = true;
+    
+    fs::ofstream outStream(file);
+    
+    if (!outStream.is_open() || outStream.bad()) {
+        return false;
+    }
+    
+    success = impl.writeSfzState(outStream);
+    
+    return success;
+}
+
+bool Synth::Impl::writeSfzState(fs::ofstream & outStream) const
+{
+    // Build opcode lists from RegionSets recursively
+
+    using RegionSetOpcodeMap = std::map<RegionSet *,std::vector<Opcode> >;
+    using RegionOpcodeMap = std::map<Region *,std::vector<Opcode> >;
+    bool oneLineRegions = true;
+
+    
+    // generate control opcodes first
+
+    std::stringstream controlStream;
+    
+    for (int i=0 ; i < (int)defaultCCValues_.size(); ++i) {
+        if (defaultCCValues_[i] != Default::loNormalized.defaultInputValue) {
+            controlStream << "set_hdcc" << i << "=" << defaultCCValues_[i] << std::endl;
+        }
+    }
+    for (const auto & cclab : ccLabels_) {
+        controlStream << "label_cc" << cclab.first << "=" << cclab.second << std::endl;
+    }
+    for (const auto & keylab : keyLabels_) {
+        controlStream << "label_key" << keylab.first << "=" << keylab.second << std::endl;
+    }
+    if (noteOffset_ != Default::noteOffset.defaultInputValue) {
+        controlStream << "note_offset" << "=" << noteOffset_ << std::endl;
+    }
+    if (octaveOffset_ != Default::octaveOffset.defaultInputValue) {
+        controlStream << "octave_offset" << "=" << octaveOffset_ << std::endl;
+    }
+
+    auto contstr = controlStream.str();
+    if (!contstr.empty()) {
+        outStream << "<control>" << std::endl;
+        outStream << contstr << std::endl;
+        //outStream << std::endl;
+    }
+    
+
+
+    
+    RegionSetOpcodeMap setsMap;
+    RegionOpcodeMap regionsMap;
+
+    auto opcodeMatch = [](const Opcode & op1, const Opcode & op2 ) {
+        return (op1.name == op2.name && op1.value == op2.value);
+    };
+    
+    std::function<void(RegionSet*)> gatherOpcodes = [&] (RegionSet * regionset) {
+
+        auto setmapentry = setsMap.insert({regionset, {}});
+        auto & setcodes = setmapentry.first->second;
+
+        std::cerr << "Gather for set: " << regionset << " vecptr: " << &setcodes << std::endl;
+
+        
+        for (const auto set : regionset->getSubsets()) {
+            gatherOpcodes(set);
+        }
+        
+        for (const auto region : regionset->getRegions()) {
+            auto iter_success = regionsMap.insert({region, {}});
+            if (iter_success.second) {
+                region->generateOpcodes(iter_success.first->second);
+            }
+        }
+
+        // go through all the regions again, keeping track of opcodes that are the same
+        // in every region
+        bool setcodesInited = false;
+        
+        
+        std::cerr << "subset pointer: " << regionset << " vecptr: " << &setcodes << std::endl;
+
+        std::vector<Opcode> & tempcodes = setcodes;
+        bool tempinit = false;
+        
+        for (const auto region : regionset->getRegions()) {
+            auto found = regionsMap.find(region);
+            if (found == regionsMap.end()) continue;
+            
+            if (!tempinit) {
+                // initialize
+                tempcodes = found->second;
+                tempinit = true;
+            }
+            else {
+                for (auto iter = tempcodes.begin() ; iter != tempcodes.end() ; ) {
+                    bool exists = false;
+                    for (const auto & code : found->second) {
+                        if (opcodeMatch(*iter, code)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (exists) ++iter;
+                    else {
+                        std::cerr << "deleting code: " << *iter << " because region: " <<  region->sampleId->filename() << std::endl;
+                        iter = tempcodes.erase(iter);
+                        
+                    }
+                }
+                // all gone? no need to continue
+                if (tempcodes.empty()) break;
+            }
+        }
+        //setcodes = tempcodes;
+        
+        
+        //tempcodes.clear();
+        //tempinit = false;
+        
+        // do the same for any subset's codes
+        for (const auto set : regionset->getSubsets()) {
+            auto found = setsMap.find(set);
+            if (found == setsMap.end()) continue;
+            
+            if (!tempinit) {
+                // initialize
+                tempcodes = found->second;
+                tempinit = true;
+            }
+            else {
+                for (auto iter = tempcodes.begin() ; iter != tempcodes.end() ; ) {
+                    bool exists = false;
+                    for (const auto & code : found->second) {
+                        if (opcodeMatch(*iter, code)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (exists) ++iter;
+                    else {
+                        std::cerr << "deleting code: " << (*iter) << " because set: " <<  set << std::endl;
+
+                        iter = tempcodes.erase(iter);
+                    }
+                }
+                // all gone? no need to continue
+                if (tempcodes.empty()) break;
+            }
+        }
+
+        //setcodes.insert(setcodes.end(), tempcodes.begin(), tempcodes.end());
+        
+        // make sure we don't have any specially scoped codes that are above our scope
+        for (auto iter = setcodes.begin(); iter != setcodes.end(); ) {
+            // necessary? maybe not
+            if (iter->name == "sample") {
+                iter = setcodes.erase(iter);
+            }
+            else if ((iter->name == "group_volume" || iter->name == "group_amplitude" || iter->name == "group_tune") && (regionset->getLevel() == OpcodeScope::kOpcodeScopeGlobal)) {
+                iter = setcodes.erase(iter);
+            }
+            else {
+                ++iter;
+            }
+        }
+
+        
+        
+        // now remove the matching opcodes that were found from every region and subset
+        for (const auto & rcode  : setcodes) {
+            
+            std::cerr << "subset code: " << rcode << std::endl;
+            
+            for (const auto region : regionset->getRegions()) {
+                auto found = regionsMap.find(region);
+                if (found == regionsMap.end()) continue;
+
+                for (auto iter = found->second.begin() ; iter != found->second.end() ; ) {
+                    if (opcodeMatch(rcode, *iter)) {
+                        iter = found->second.erase(iter);
+                        //std::cerr << "deleting subset code: " << rcode << " from region: " <<  region->sampleId->filename() << std::endl;
+                    } else {
+                        ++iter;
+                    }
+                }
+            }
+
+            for (const auto set : regionset->getSubsets()) {
+                auto found = setsMap.find(set);
+                if (found == setsMap.end()) continue;
+
+                for (auto iter = found->second.begin() ; iter != found->second.end() ; ) {
+                    if (opcodeMatch(rcode, *iter)) {
+                        iter = found->second.erase(iter);
+                        std::cerr << "deleting subset code: " << rcode << " from set: " << set << std::endl;
+                    } else {
+                        ++iter;
+                    }
+                }
+            }
+
+        }
+        
+        std::cerr << "gset: " << regionset << " has " << setcodes.size() << " ptr: " << &setcodes <<  std::endl;
+    };
+
+    for (const auto & item : sets_) {
+        if (setsMap.find(item.get()) == setsMap.end()) {
+            gatherOpcodes(item.get());
+        }
+    }
+    
+    // now that we have everything, spit it out
+    RegionSetOpcodeMap writtenSetsMap;
+
+    
+    std::function<void(RegionSet*)> writeOpcodes = [&] (RegionSet* regionset) {
+
+        writtenSetsMap.insert({regionset, {}});
+        
+        switch (regionset->getLevel()) {
+            case OpcodeScope::kOpcodeScopeGlobal:  outStream << "<global>" << std::endl; break;
+            case OpcodeScope::kOpcodeScopeMaster:  outStream << "<master>" << std::endl; break;
+            case OpcodeScope::kOpcodeScopeGroup:  outStream << "<group>" << std::endl; break;
+            case OpcodeScope::kOpcodeScopeEffect:  outStream << "<effect>" << std::endl; break;
+            case OpcodeScope::kOpcodeScopeControl:  outStream << "<control>" << std::endl; break;
+            //case OpcodeScope::kOpcodeScopeRegion:  outStream << "<region>" << std::endl; break;
+            default: break;
+        }
+
+        auto foundSetCodes = setsMap.find(regionset);
+
+        if (foundSetCodes != setsMap.end()) {
+            std::cerr << "set: " << foundSetCodes->first << " has " << foundSetCodes->second.size() << " ptr: " << &foundSetCodes->second <<  " and regions: " << regionset->getRegions().size() << std::endl;
+
+            for (const auto & code : foundSetCodes->second) {
+                outStream << code.toString() << std::endl;
+            }
+
+            outStream << std::endl;
+        }
+
+
+        for (const auto set : regionset->getSubsets()) {
+            writeOpcodes(set);
+        }
+        
+        for (const auto region : regionset->getRegions()) {
+            auto found = regionsMap.find(region);
+            if (found != regionsMap.end()) {
+                outStream << "<region>";
+                if (!oneLineRegions) outStream << std::endl;
+                else outStream << " ";
+                
+                for (const auto & code : found->second) {
+                    outStream << code.toString();
+                    if (!oneLineRegions) outStream << std::endl;
+                    else outStream << " ";
+                }
+                
+                if (oneLineRegions) outStream << std::endl;
+            }
+        }
+        
+        outStream << std::endl;
+    };
+    
+    for (const auto & item : sets_) {
+        if (writtenSetsMap.find(item.get()) == writtenSetsMap.end()) {
+            writeOpcodes(item.get());
+        }
+    }
+    
+    // write curves
+    const auto & curves = resources_.getCurves();
+    for (unsigned i=Curve::NumPredefinedCurves; i < curves.getNumCurves(); ++i) {
+        auto curve = curves.getRawCurve(i);
+        if (curve != nullptr) {
+            outStream << "<curve> curve_index=" << i << " ";
+            std::vector<Opcode> opcodes;
+            curve->generateOpcodes(opcodes);
+            for (const auto & code : opcodes) {
+                outStream << code.toString();
+                if (!oneLineRegions) outStream << std::endl;
+                else outStream << " ";
+            }
+            outStream << std::endl;
+        }
+    }
+    
+    return true;
+}
+
 
 } // namespace sfz

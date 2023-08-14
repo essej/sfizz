@@ -196,6 +196,20 @@ struct Region {
      */
     bool processGenericCc(const Opcode& opcode, OpcodeSpec<float> spec, const ModKey& target);
 
+    /**
+     * @brief Generate all opcodes that define this region
+     *
+     * @param retOpcodes vector that will be filled with opcodes
+     * @param forceAll when false, only the opcodes that are different than their default values are included,
+     *        when true all opcodes are included (not recommended!)
+     * @return true if the opcode was properly read and stored.
+     * @return false
+     */
+    bool generateOpcodes(std::vector<Opcode> & retOpcodes, bool forceAll = false) const;
+    bool generateEGOpcodes(std::vector<Opcode> & retOpcodes, const EGDescription& eg, const std::string & prefix, bool forceAll) const;
+    bool generateLFOOpcodes(std::vector<Opcode> & retOpcodes, const LFODescription& lfo, const std::string & prefix, bool forceAll) const;
+    bool generateConnections(std::vector<Opcode> & retOpcodes, bool forceAll) const;
+    
     void offsetAllKeys(int offset) noexcept;
 
     /**
@@ -242,6 +256,7 @@ struct Region {
     int64_t offsetRandom { Default::offsetRandom }; // offset_random
     CCMap<int64_t> offsetCC { Default::offsetMod };
     int64_t sampleEnd { Default::sampleEnd }; // end
+    int64_t fileSampleEnd { Default::sampleEnd }; // end
     CCMap<int64_t> endCC { Default::sampleEndMod };
     absl::optional<uint32_t> sampleCount {}; // count
     absl::optional<LoopMode> loopMode {}; // loopmode

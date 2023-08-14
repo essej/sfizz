@@ -122,6 +122,14 @@ std::string Opcode::getDerivedName(OpcodeCategory newCategory, unsigned number) 
     return derivedName;
 }
 
+std::string Opcode::toString(bool quote) const
+{
+    if (quote) // jlc
+        return absl::StrCat(name, "=\"", value, "\"");
+    else
+        return absl::StrCat(name, "=", value);
+}
+
 OpcodeCategory Opcode::identifyCategory(absl::string_view name)
 {
     OpcodeCategory category = kOpcodeNormal;

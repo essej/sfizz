@@ -7,6 +7,7 @@
 #include "Region.h"
 #include "Opcode.h"
 #include "MathHelpers.h"
+#include "FilePool.h" // for region length check in output
 #include "utility/SwapAndPop.h"
 #include "utility/StringViewHelpers.h"
 #include "utility/Macros.h"
@@ -1885,4 +1886,888 @@ absl::optional<sfz::ModKey::Parameters> sfz::Region::ccModParameters(int cc, Mod
     if (!conn)
         return {};
     return conn->source.parameters();
+}
+
+
+bool sfz::Region::generateOpcodes(std::vector<Opcode> & retOpcodes, bool forceAll) const
+{
+    
+    
+    if (sampleQuality) {
+        if (forceAll || *sampleQuality != Default::sampleQuality.defaultInputValue) {
+            retOpcodes.emplace_back("sample_quality", absl::StrCat(*sampleQuality));
+        }
+    }
+
+    if (sampleId->isReverse()) {
+        retOpcodes.emplace_back("direction", "reverse");
+    }
+
+    if (forceAll || delay != Default::delay.defaultInputValue) {
+        retOpcodes.emplace_back("delay", absl::StrCat(delay));
+    }
+    for (const auto & val : delayCC) {
+        retOpcodes.emplace_back( absl::StrCat("delay_oncc", val.cc), absl::StrCat(val.data) );
+    }
+
+    if (forceAll || delayRandom != Default::delayRandom.defaultInputValue) {
+        retOpcodes.emplace_back("delay_random", absl::StrCat(delayRandom));
+    }
+
+    if (forceAll || offset != Default::offset.defaultInputValue) {
+        retOpcodes.emplace_back("offset", absl::StrCat(offset));
+    }
+    if (forceAll || offsetRandom != Default::offsetRandom.defaultInputValue) {
+        retOpcodes.emplace_back("offset_random", absl::StrCat(offsetRandom));
+    }
+    for (const auto & val : offsetCC) {
+        retOpcodes.emplace_back( absl::StrCat("offset_oncc", val.cc), absl::StrCat(val.data) );
+    }
+
+    if (forceAll || sampleEnd != Default::sampleEnd.defaultInputValue) {
+        if (sampleEnd != fileSampleEnd) {
+            retOpcodes.emplace_back("end", absl::StrCat(sampleEnd));
+        }
+    }
+    for (const auto & val : endCC) {
+        retOpcodes.emplace_back( absl::StrCat("end_oncc", val.cc), absl::StrCat(val.data) );
+    }
+
+    if (sampleCount) {
+        if (forceAll || *sampleCount != Default::sampleCount.defaultInputValue) {
+            retOpcodes.emplace_back("count", absl::StrCat(*sampleCount));
+        }
+    }
+
+    if (loopMode) {
+        if (forceAll || *loopMode != Default::loopMode.defaultInputValue) {
+            std::string lmodestr;
+            switch(*loopMode) {
+                case LoopMode::no_loop: lmodestr = "no_loop"; break;
+                case LoopMode::loop_continuous: lmodestr = "loop_continuous"; break;
+                case LoopMode::loop_sustain: lmodestr = "loop_sustain"; break;
+                case LoopMode::one_shot: lmodestr = "one_shot"; break;
+            }
+            retOpcodes.emplace_back("loop_mode", lmodestr);
+        }
+    }
+
+    if (forceAll || loopRange.getEnd() != Default::loopEnd.defaultInputValue) {
+        if (loopRange.getEnd() != sampleEnd) {
+            retOpcodes.emplace_back("loop_end", absl::StrCat(loopRange.getEnd()));
+        }
+    }
+    if (forceAll || loopRange.getStart() != Default::loopStart.defaultInputValue) {
+        retOpcodes.emplace_back("loop_start", absl::StrCat(loopRange.getStart()));
+    }
+    if (loopCount) {
+        if (forceAll || *loopCount != Default::loopCount.defaultInputValue) {
+            retOpcodes.emplace_back("loop_count", absl::StrCat(*loopCount));
+        }
+    }
+    for (const auto & val : loopStartCC) {
+        retOpcodes.emplace_back( absl::StrCat("loop_start_oncc", val.cc), absl::StrCat(val.data) );
+    }
+    for (const auto & val : loopEndCC) {
+        retOpcodes.emplace_back( absl::StrCat("loop_end_oncc", val.cc), absl::StrCat(val.data) );
+    }
+    if (forceAll || loopCrossfade != Default::loopCrossfade.defaultInputValue) {
+        retOpcodes.emplace_back("loop_crossfade", absl::StrCat(loopCrossfade));
+    }
+
+    if (forceAll || oscillatorPhase != Default::oscillatorPhase.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_phase", absl::StrCat(oscillatorPhase));
+    }
+    if (forceAll || oscillatorEnabled != Default::oscillator.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_phase", oscillatorEnabled == OscillatorEnabled::Auto ? "auto" : oscillatorEnabled == OscillatorEnabled::On ? "on" : "off" );
+    }
+    if (forceAll || oscillatorMode != Default::oscillatorMode.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_mode", absl::StrCat(oscillatorMode));
+    }
+    if (forceAll || oscillatorMulti != Default::oscillatorMulti.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_multi", absl::StrCat(oscillatorMulti));
+    }
+    if (forceAll || oscillatorDetune != Default::oscillatorDetune.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_detune", absl::StrCat(oscillatorDetune));
+    }
+    if (forceAll || oscillatorModDepth*100.0f != Default::oscillatorModDepth.defaultInputValue) {
+        retOpcodes.emplace_back("oscillator_mod_depth", absl::StrCat(oscillatorModDepth*100.0f));
+    }
+    if (oscillatorQuality) {
+        if (forceAll || *oscillatorQuality != Default::oscillatorQuality.defaultInputValue) {
+            retOpcodes.emplace_back("oscillator_quality", absl::StrCat(*oscillatorQuality));
+        }
+    }
+
+    
+    if (forceAll || group != Default::group.defaultInputValue) {
+        retOpcodes.emplace_back("group", absl::StrCat(group));
+    }
+
+    if (forceAll || output != Default::output.defaultInputValue) {
+        retOpcodes.emplace_back("output", absl::StrCat(output));
+    }
+
+    if (offBy) {
+        if (forceAll || *offBy != Default::group.defaultInputValue) {
+            retOpcodes.emplace_back("off_by", absl::StrCat(*offBy));
+        }
+    }
+
+    if (forceAll || offMode != Default::offMode.defaultInputValue) {
+        std::string lmodestr;
+        switch (offMode) {
+            case OffMode::time: lmodestr = "time"; break;
+            case OffMode::normal: lmodestr = "normal"; break;
+            case OffMode::fast: lmodestr = "fast"; break;
+        }
+        
+        retOpcodes.emplace_back("off_mode", lmodestr);
+        
+        if (offMode == OffMode::time && (forceAll || offTime != Default::offTime.defaultInputValue)) {
+            retOpcodes.emplace_back("off_time", absl::StrCat(offTime));
+        }
+    }
+
+    if (forceAll || polyphony != Default::polyphony.defaultInputValue) {
+        retOpcodes.emplace_back("polyphony", absl::StrCat(polyphony));
+    }
+    if (notePolyphony) {
+        if (forceAll || *notePolyphony != Default::notePolyphony.defaultInputValue) {
+            retOpcodes.emplace_back("note_polyphony", absl::StrCat(*notePolyphony));
+        }
+    }
+
+    if (forceAll || selfMask != Default::selfMask.defaultInputValue) {
+        std::string lmodestr;
+        switch (selfMask) {
+            case SelfMask::dontMask : lmodestr = "off"; break;
+            case SelfMask::mask : lmodestr = "on"; break;
+        }
+        retOpcodes.emplace_back("note_selfmask", lmodestr);
+    }
+
+    if (forceAll || rtDead != Default::rtDead.defaultInputValue) {
+        retOpcodes.emplace_back("rt_dead", rtDead ? "on" : "off");
+    }
+
+    // if pitchkeycenter lokey and hikey are the same, use "key" only
+    if (!pitchKeycenterFromSample && pitchKeycenter == keyRange.getStart() && pitchKeycenter == keyRange.getEnd()) {
+        retOpcodes.emplace_back("key", absl::StrCat(pitchKeycenter));
+    }
+    else {
+        if (pitchKeycenterFromSample) {
+            retOpcodes.emplace_back("pitch_keycenter", "sample");
+        }
+        else if (forceAll || pitchKeycenter != Default::key.defaultInputValue) {
+            retOpcodes.emplace_back("pitch_keycenter", absl::StrCat(pitchKeycenter));
+        }
+
+        if (forceAll || keyRange.getStart() != Default::loKey.defaultInputValue) {
+            retOpcodes.emplace_back("lokey", absl::StrCat(keyRange.getStart()));
+        }
+        if (forceAll || keyRange.getEnd() != Default::hiKey.defaultInputValue) {
+            retOpcodes.emplace_back("hikey", absl::StrCat(keyRange.getEnd()));
+        }
+    }
+
+    if (forceAll || velocityRange.getStart()*127.0f != Default::loVel.defaultInputValue) {
+        retOpcodes.emplace_back("lovel", absl::StrCat((int)(velocityRange.getStart()*127.0f)));
+    }
+    if (forceAll || velocityRange.getEnd()*127.0f != Default::hiVel.defaultInputValue) {
+        retOpcodes.emplace_back("hivel", absl::StrCat((int)(velocityRange.getEnd()*127.0f)));
+    }
+
+    if (forceAll || crossfadeKeyInRange.getStart() != Default::loKey.defaultInputValue) {
+        retOpcodes.emplace_back("lobend", absl::StrCat(crossfadeKeyInRange.getStart()));
+    }
+    if (forceAll || crossfadeKeyInRange.getEnd() != Default::loKey.defaultInputValue) {
+        retOpcodes.emplace_back("hibend", absl::StrCat(crossfadeKeyInRange.getEnd()));
+    }
+
+    if (forceAll || programRange.getStart() != Default::loProgram.defaultInputValue) {
+        retOpcodes.emplace_back("loprog", absl::StrCat(programRange.getStart()));
+    }
+    if (forceAll || programRange.getEnd() != Default::hiProgram.defaultInputValue) {
+        retOpcodes.emplace_back("hiprog", absl::StrCat(programRange.getEnd()));
+    }
+
+    for (const auto & val : ccConditions) {
+        if (forceAll || val.data.getStart() != Default::loNormalized.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("lohdcc", val.cc), absl::StrCat(val.data.getStart()) );
+        }
+        if (forceAll || val.data.getEnd() != Default::hiNormalized.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("hihdcc", val.cc), absl::StrCat(val.data.getEnd()) );
+        }
+    }
+    
+    if (usesKeySwitches) {
+        if (lastKeyswitch) {
+            retOpcodes.emplace_back( "sw_last", absl::StrCat(*lastKeyswitch) );
+        }
+        else if (lastKeyswitchRange) {
+            retOpcodes.emplace_back( "sw_lolast", absl::StrCat(lastKeyswitchRange->getStart()) );
+            retOpcodes.emplace_back( "sw_hilast", absl::StrCat(lastKeyswitchRange->getEnd()) );
+        }
+        
+        if (downKeyswitch) {
+            retOpcodes.emplace_back( "sw_down", absl::StrCat(*downKeyswitch) );
+        }
+        if (upKeyswitch) {
+            retOpcodes.emplace_back( "sw_up", absl::StrCat(*upKeyswitch) );
+        }
+    }
+
+    if (keyswitchLabel) {
+        retOpcodes.emplace_back( "sw_label", *keyswitchLabel);
+    }
+
+    if (usesPreviousKeySwitches && previousKeyswitch) {
+        retOpcodes.emplace_back( "sw_previous", absl::StrCat(*previousKeyswitch));
+    }
+    
+    if (forceAll || velocityOverride != Default::velocityOverride.defaultInputValue) {
+        std::string valstr = velocityOverride == VelocityOverride::current ? "current" : "previous";
+        retOpcodes.emplace_back("sw_vel", valstr);
+    }
+
+    if (forceAll || sustainCC != Default::sustainCC.defaultInputValue) {
+        retOpcodes.emplace_back("sustain_cc", absl::StrCat(sustainCC));
+    }
+    if (forceAll || sostenutoCC != Default::sostenutoCC.defaultInputValue) {
+        retOpcodes.emplace_back("sostenuto_cc", absl::StrCat(sostenutoCC));
+    }
+
+    if (forceAll || sustainThreshold*127.0f != Default::sustainThreshold.defaultInputValue) {
+        retOpcodes.emplace_back("sustain_lo", absl::StrCat((int)(sustainThreshold*127.0f)));
+    }
+    if (forceAll || sostenutoThreshold*127.0f != Default::sostenutoThreshold.defaultInputValue) {
+        retOpcodes.emplace_back("sostenuto_lo", absl::StrCat((int)(sostenutoThreshold*127.0f)));
+    }
+
+    if (forceAll || checkSustain != Default::checkSustain.defaultInputValue) {
+        retOpcodes.emplace_back("sustain_sw", checkSustain ? "on" : "off");
+    }
+    if (forceAll || checkSostenuto != Default::checkSostenuto.defaultInputValue) {
+        retOpcodes.emplace_back("sostenuto_sw", checkSostenuto ? "on" : "off");
+    }
+
+    if (forceAll || aftertouchRange.getStart()*127.0f != Default::loChannelAftertouch.defaultInputValue) {
+        retOpcodes.emplace_back("lochanaft", absl::StrCat((int)(aftertouchRange.getStart()*127.0f)));
+    }
+    if (forceAll || aftertouchRange.getEnd()*127.0f != Default::hiChannelAftertouch.defaultInputValue) {
+        retOpcodes.emplace_back("hichanaft", absl::StrCat((int)(aftertouchRange.getEnd()*127.0f)));
+    }
+    if (forceAll || polyAftertouchRange.getStart()*127.0f != Default::loPolyAftertouch.defaultInputValue) {
+        retOpcodes.emplace_back("lopolyaft", absl::StrCat((int)(polyAftertouchRange.getStart()*127.0f)));
+    }
+    if (forceAll || polyAftertouchRange.getEnd()*127.0f != Default::hiPolyAftertouch.defaultInputValue) {
+        retOpcodes.emplace_back("hipolyaft", absl::StrCat((int)(polyAftertouchRange.getEnd()*127.0f)));
+    }
+
+    if (forceAll || bpmRange.getStart() != Default::loBPM.defaultInputValue) {
+        retOpcodes.emplace_back("lobpm", absl::StrCat(bpmRange.getStart()));
+    }
+    if (forceAll || bpmRange.getEnd() != Default::hiBPM.defaultInputValue) {
+        retOpcodes.emplace_back("hibpm", absl::StrCat(bpmRange.getEnd()));
+    }
+    
+    if (forceAll || randRange.getStart() != Default::loNormalized.defaultInputValue) {
+        retOpcodes.emplace_back("lorand", absl::StrCat(randRange.getStart()));
+    }
+    if (forceAll || randRange.getEnd() != Default::hiNormalized.defaultInputValue) {
+        retOpcodes.emplace_back("hirand", absl::StrCat(randRange.getEnd()));
+    }
+
+    if (forceAll || sequenceLength != Default::sequence.defaultInputValue) {
+        retOpcodes.emplace_back("seq_length", absl::StrCat(sequenceLength));
+    }
+    if (forceAll || sequencePosition != Default::sequence.defaultInputValue) {
+        retOpcodes.emplace_back("seq_position", absl::StrCat(sequencePosition));
+    }
+
+    if (forceAll || trigger != Default::trigger.defaultInputValue) {
+        std::string lmodestr;
+        switch (trigger) {
+            case Trigger::attack: lmodestr = "attack"; break;
+            case Trigger::first: lmodestr = "first"; break;
+            case Trigger::release: lmodestr = "release"; break;
+            case Trigger::release_key: lmodestr = "release_key"; break;
+            case Trigger::legato: lmodestr = "legato"; break;
+        }
+        retOpcodes.emplace_back("trigger", lmodestr);
+    }
+
+    for (const auto & val : ccTriggers) {
+        if (val.data.getStart() != Default::loNormalized.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("start_lohdcc", val.cc), absl::StrCat(val.data.getStart()));
+        if (val.data.getEnd() != Default::hiNormalized.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("start_hihdcc", val.cc), absl::StrCat(val.data.getEnd()));
+    }
+
+    
+    if (forceAll || volume != Default::volume.defaultInputValue) {
+        retOpcodes.emplace_back("volume", absl::StrCat(volume));
+    }
+    if (forceAll || amplitude*100.0 != Default::amplitude.defaultInputValue) {
+        retOpcodes.emplace_back("amplitude", absl::StrCat(amplitude*100.0));
+    }
+
+    if (forceAll || pan*100.0f != Default::pan.defaultInputValue) {
+        retOpcodes.emplace_back("pan", absl::StrCat(pan*100.0f));
+    }
+
+    if (forceAll || position*100.0f != Default::position.defaultInputValue) {
+        retOpcodes.emplace_back("position", absl::StrCat(position*100.0f));
+    }
+
+    if (forceAll || width*100.0f != Default::width.defaultInputValue) {
+        retOpcodes.emplace_back("width", absl::StrCat(width*100.0f));
+    }
+
+
+    if (forceAll || ampKeycenter != Default::key.defaultInputValue) {
+        retOpcodes.emplace_back("amp_keycenter", absl::StrCat(ampKeycenter));
+    }
+    if (forceAll || ampKeytrack != Default::ampKeytrack.defaultInputValue) {
+        retOpcodes.emplace_back("amp_keytrack", absl::StrCat(ampKeytrack));
+    }
+    
+    if (forceAll || ampVeltrack*100.0f != Default::ampVeltrack.defaultInputValue) {
+        retOpcodes.emplace_back("amp_veltrack", absl::StrCat(ampVeltrack*100.0f));
+    }
+    for (const auto & val : ampVeltrackCC) {
+        if (val.data.modifier*100.0f != Default::ampVeltrackMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("amp_veltrack_oncc", val.cc), absl::StrCat(val.data.modifier*100.0f));
+        if (val.data.curve != Default::curveCC.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("amp_veltrack_curvecc", val.cc), absl::StrCat(val.data.curve));
+    }
+
+    if (forceAll || ampRandom != Default::ampRandom.defaultInputValue) {
+        retOpcodes.emplace_back("amp_random", absl::StrCat(ampRandom));
+    }
+
+    for (const auto & val : velocityPoints) {
+        if (val.second != Default::ampVelcurve.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("amp_velcurve_", val.first), absl::StrCat(val.second));
+    }
+    
+    if (forceAll || crossfadeKeyInRange.getStart() != Default::loKey.defaultInputValue) {
+        retOpcodes.emplace_back("xfin_lokey", absl::StrCat(crossfadeKeyInRange.getStart()));
+    }
+    if (forceAll || crossfadeKeyInRange.getEnd() != Default::loKey.defaultInputValue) { // lokey for proper default
+        retOpcodes.emplace_back("xfin_hikey", absl::StrCat(crossfadeKeyInRange.getEnd()));
+    }
+    if (forceAll || crossfadeKeyOutRange.getStart() != Default::hiKey.defaultInputValue) { // hikey for proper default
+        retOpcodes.emplace_back("xfout_lokey", absl::StrCat(crossfadeKeyOutRange.getStart()));
+    }
+    if (forceAll || crossfadeKeyOutRange.getEnd() != Default::hiKey.defaultInputValue) {
+        retOpcodes.emplace_back("xfout_hikey", absl::StrCat(crossfadeKeyOutRange.getEnd()));
+    }
+    
+    if (forceAll || crossfadeVelInRange.getStart()*127.0f != Default::xfinLo.defaultInputValue) {
+        retOpcodes.emplace_back("xfin_lovel", absl::StrCat((int)(crossfadeVelInRange.getStart()*127.0f)));
+    }
+    if (forceAll || crossfadeVelInRange.getEnd()*127.0f != Default::xfinHi.defaultInputValue) {
+        retOpcodes.emplace_back("xfin_hivel", absl::StrCat((int)(crossfadeVelInRange.getEnd()*127.0f)));
+    }
+    if (forceAll || crossfadeVelOutRange.getStart()*127.0f != Default::xfoutLo.defaultInputValue) {
+        retOpcodes.emplace_back("xfout_lovel", absl::StrCat((int)(crossfadeVelOutRange.getStart()*127.0f)));
+    }
+    if (forceAll || crossfadeVelOutRange.getEnd()*127.0f != Default::xfoutHi.defaultInputValue) {
+        retOpcodes.emplace_back("xfout_hivel", absl::StrCat((int)(crossfadeVelOutRange.getEnd()*127.0f)));
+    }
+
+    if (forceAll || crossfadeKeyCurve != Default::crossfadeCurve.defaultInputValue) {
+        std::string lmodestr;
+        switch(crossfadeKeyCurve) {
+            case CrossfadeCurve::gain: lmodestr ="gain"; break;
+            case CrossfadeCurve::power: lmodestr = "power"; break;
+        }
+        retOpcodes.emplace_back("xf_keycurve", lmodestr);
+    }
+    if (forceAll || crossfadeVelCurve != Default::crossfadeCurve.defaultInputValue) {
+        std::string lmodestr;
+        switch(crossfadeVelCurve) {
+            case CrossfadeCurve::gain: lmodestr ="gain"; break;
+            case CrossfadeCurve::power: lmodestr = "power"; break;
+        }
+        retOpcodes.emplace_back("xf_velcurve", absl::StrCat(crossfadeVelCurve));
+    }
+
+    if (forceAll || crossfadeCCCurve != Default::crossfadeCurve.defaultInputValue) {
+        std::string lmodestr;
+        switch(crossfadeCCCurve) {
+            case CrossfadeCurve::gain: lmodestr ="gain"; break;
+            case CrossfadeCurve::power: lmodestr = "power"; break;
+        }
+        retOpcodes.emplace_back("xf_cccurve", absl::StrCat(crossfadeCCCurve));
+    }
+
+    for (const auto & val : crossfadeCCInRange) {
+        if (forceAll || val.data.getStart()*127.0f != Default::xfinLo.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("xfin_locc", val.cc), absl::StrCat((int)(val.data.getStart()*127.0f)) );
+        }
+        if (forceAll || val.data.getEnd()*127.0f != Default::xfinHi.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("xfin_hicc", val.cc), absl::StrCat((int)(val.data.getEnd()*127.0f)) );
+        }
+    }
+    for (const auto & val : crossfadeCCOutRange) {
+        if (forceAll || val.data.getStart()*127.0f != Default::xfoutLo.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("xfout_locc", val.cc), absl::StrCat((int)(val.data.getStart()*127.0f)) );
+        }
+        if (forceAll || val.data.getEnd()*127.0f != Default::xfoutHi.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("xfout_hicc", val.cc), absl::StrCat((int)(val.data.getEnd()*127.0f)) );
+        }
+    }
+
+    if (forceAll || rtDecay != Default::rtDecay.defaultInputValue) {
+        retOpcodes.emplace_back("rt_decay", absl::StrCat(rtDecay));
+    }
+    
+    if (forceAll || globalAmplitude*100.0f != Default::amplitude.defaultInputValue) {
+        retOpcodes.emplace_back("global_amplitude", absl::StrCat(globalAmplitude*100.0f));
+    }
+    if (forceAll || masterAmplitude*100.0f != Default::amplitude.defaultInputValue) {
+        retOpcodes.emplace_back("master_amplitude", absl::StrCat(masterAmplitude*100.0f));
+    }
+    if (forceAll || groupAmplitude*100.0f != Default::amplitude.defaultInputValue) {
+        retOpcodes.emplace_back("group_amplitude", absl::StrCat(groupAmplitude*100.0f));
+    }
+
+    if (forceAll || globalVolume != Default::volume.defaultInputValue) {
+        retOpcodes.emplace_back("global_volume", absl::StrCat(globalVolume));
+    }
+    if (forceAll || masterVolume != Default::volume.defaultInputValue) {
+        retOpcodes.emplace_back("master_volume", absl::StrCat(masterVolume));
+    }
+    if (forceAll || groupVolume != Default::volume.defaultInputValue) {
+        retOpcodes.emplace_back("group_volume", absl::StrCat(groupVolume));
+    }
+
+    for (size_t i=0; i < filters.size(); ++i) {
+        if (forceAll || filters[i].cutoff != Default::filterCutoff.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("cutoff", i+1), absl::StrCat(filters[i].cutoff) );
+        }
+        if (forceAll || filters[i].resonance != Default::filterResonance.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("resonance", i+1), absl::StrCat(filters[i].resonance) );
+        }
+        if (forceAll || filters[i].keytrack != Default::filterKeytrack.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_keytrack"), absl::StrCat(filters[i].keytrack) );
+        }
+        if (forceAll || filters[i].keycenter != Default::key.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_keycenter"), absl::StrCat(filters[i].keycenter) );
+        }
+        if (forceAll || filters[i].veltrack != Default::filterVeltrack.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_veltrack"), absl::StrCat(filters[i].veltrack) );
+        }
+        for (const auto & val : filters[i].veltrackCC) {
+            if (forceAll || val.data.modifier != Default::filterVeltrackMod.defaultInputValue) {
+                retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_veltrack_oncc", val.cc), absl::StrCat(val.data.modifier) );
+            }
+            if (forceAll || val.data.curve != Default::curveCC.defaultInputValue) {
+                retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_veltrack_curvecc", val.cc), absl::StrCat(val.data.curve) );
+            }
+        }
+        if (forceAll || filters[i].random != Default::filterRandom.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_random"), absl::StrCat(filters[i].random) );
+        }
+        if (forceAll || filters[i].gain != Default::filterGain.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_gain"), absl::StrCat(filters[i].gain) );
+        }
+        if (forceAll || filters[i].type != Default::filter.defaultInputValue) {
+            std::string lmodestr;
+            switch (filters[i].type) {
+                case FilterType::kFilterLpf1p: lmodestr = "lpf_1p"; break;
+                case FilterType::kFilterHpf1p: lmodestr = "hpf_1p"; break;
+                case FilterType::kFilterLpf2p: lmodestr = "lpf_2p"; break;
+                case FilterType::kFilterHpf2p: lmodestr = "hpf_2p"; break;
+                case FilterType::kFilterBpf2p: lmodestr = "bpf_2p"; break;
+                case FilterType::kFilterBrf2p: lmodestr = "brf_2p"; break;
+                case FilterType::kFilterBpf1p: lmodestr = "bpf_1p"; break;
+                case FilterType::kFilterBrf1p: lmodestr = "brf_1p"; break;
+                case FilterType::kFilterApf1p: lmodestr = "apf_1p"; break;
+                case FilterType::kFilterLpf2pSv: lmodestr = "lpf_2p_sv"; break;
+                case FilterType::kFilterHpf2pSv: lmodestr = "hpf_2p_sv"; break;
+                case FilterType::kFilterBpf2pSv: lmodestr = "bpf_2p_sv"; break;
+                case FilterType::kFilterBrf2pSv: lmodestr = "brf_2p_sv"; break;
+                case FilterType::kFilterLpf4p: lmodestr = "lpf_4p"; break;
+                case FilterType::kFilterHpf4p: lmodestr = "hpf_4p"; break;
+                case FilterType::kFilterLpf6p: lmodestr = "lpf_6p"; break;
+                case FilterType::kFilterHpf6p: lmodestr = "hpf_6p"; break;
+                case FilterType::kFilterPink: lmodestr = "pink"; break;
+                case FilterType::kFilterLsh: lmodestr = "lsh"; break;
+                case FilterType::kFilterHsh: lmodestr = "hsh"; break;
+                case FilterType::kFilterPeq: lmodestr = "peq"; break;
+                case FilterType::kFilterBpf4p: lmodestr = "bpf_4p"; break;
+                case FilterType::kFilterBpf6p: lmodestr = "bpf_6p"; break;
+                case FilterType::kFilterNone: lmodestr = "none"; break;
+            }
+            retOpcodes.emplace_back( absl::StrCat("fil", i+1, "_type"), lmodestr );
+        }
+    }
+    
+    for (size_t i=0; i < equalizers.size(); ++i) {
+        if (forceAll || equalizers[i].bandwidth != Default::eqBandwidth.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_bw"), absl::StrCat(equalizers[i].bandwidth) );
+        }
+        if (forceAll || equalizers[i].frequency != Default::eqFrequency.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_freq"), absl::StrCat(equalizers[i].frequency) );
+        }
+        if (forceAll || equalizers[i].vel2frequency != Default::eqVel2Frequency.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_veltofreq"), absl::StrCat(equalizers[i].vel2frequency) );
+        }
+        if (forceAll || equalizers[i].gain != Default::eqGain.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_freq"), absl::StrCat(equalizers[i].gain) );
+        }
+        if (forceAll || equalizers[i].vel2gain != Default::eqVel2Gain.defaultInputValue) {
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_veltogain"), absl::StrCat(equalizers[i].vel2gain) );
+        }
+        
+        if (forceAll || equalizers[i].type != Default::eq.defaultInputValue) {
+            // jlc
+            std::string lmodestr;
+            switch (equalizers[i].type) {
+                case EqType::kEqNone: lmodestr = "none"; break;
+                case EqType::kEqPeak: lmodestr = "peak"; break;
+                case EqType::kEqLshelf: lmodestr = "lshelf"; break;
+                case EqType::kEqHshelf: lmodestr = "hshelf"; break;
+            }
+            retOpcodes.emplace_back( absl::StrCat("eq", i+1, "_type"), lmodestr );
+        }
+    }
+
+    if (forceAll || pitchKeytrack != Default::pitchKeytrack.defaultInputValue) {
+        retOpcodes.emplace_back("pitch_keytrack", absl::StrCat(pitchKeytrack));
+    }
+    
+    if (forceAll || pitchVeltrack != Default::pitchVeltrack.defaultInputValue) {
+        retOpcodes.emplace_back("pitch_veltrack", absl::StrCat(pitchVeltrack));
+    }
+    for (const auto & val : pitchVeltrackCC) {
+        if (val.data.modifier != Default::pitchVeltrackMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("pitch_veltrack_oncc", val.cc), absl::StrCat(val.data.modifier));
+        if (val.data.curve != Default::curveCC.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("pitch_veltrack_curvecc", val.cc), absl::StrCat(val.data.curve));
+    }
+    
+    if (forceAll || pitchRandom != Default::pitchRandom.defaultInputValue) {
+        retOpcodes.emplace_back("pitch_random", absl::StrCat(pitchRandom));
+    }
+
+    if (forceAll || pitch != Default::pitch.defaultInputValue) {
+        retOpcodes.emplace_back("pitch", absl::StrCat(pitch));
+    }
+    // todo pitch cc
+
+
+    if (forceAll || bendUp != Default::bendUp.defaultInputValue) {
+        retOpcodes.emplace_back("bend_up", absl::StrCat(bendUp));
+    }
+    if (forceAll || bendDown != Default::bendDown.defaultInputValue) {
+        retOpcodes.emplace_back("bend_down", absl::StrCat(bendDown));
+    }
+    if (forceAll || bendStep != Default::bendStep.defaultInputValue) {
+        retOpcodes.emplace_back("bend_step", absl::StrCat(bendStep));
+    }
+    if (forceAll || bendSmooth != Default::smoothCC.defaultInputValue) {
+        retOpcodes.emplace_back("bend_smooth", absl::StrCat(bendSmooth));
+    }
+
+    // skip first, which is main
+    for (size_t i = 1; i < gainToEffect.size(); ++i) {
+        if (gainToEffect[i]*100.0f != Default::effect.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat("effect", i), absl::StrCat(gainToEffect[i]*100.0f));
+    }
+
+    if (defaultSwitch) {
+        if (forceAll || *defaultSwitch != Default::key.defaultInputValue) {
+            retOpcodes.emplace_back("sw_default", absl::StrCat(*defaultSwitch));
+        }
+    }
+
+    // ampeg_*
+    generateEGOpcodes(retOpcodes, amplitudeEG, "ampeg_", forceAll);
+
+    // pitcheg_*
+    if (pitchEG)
+        generateEGOpcodes(retOpcodes, *pitchEG, "pitcheg_", forceAll);
+
+    // fileg_*
+    if (filterEG)
+        generateEGOpcodes(retOpcodes, *filterEG, "fileg_", forceAll);
+
+    // TODO LFO
+
+    if (amplitudeLFO)
+        generateLFOOpcodes(retOpcodes, *amplitudeLFO, "amplfo_", forceAll);
+    if (pitchLFO)
+        generateLFOOpcodes(retOpcodes, *pitchLFO, "pitchlfo_", forceAll);
+    if (filterLFO)
+        generateLFOOpcodes(retOpcodes, *filterLFO, "fillfo_", forceAll);
+
+    
+    // mod matrix connections
+    generateConnections(retOpcodes, forceAll);
+    
+    // put sample last
+    retOpcodes.emplace_back("sample", sampleId->filename());
+
+    
+    return true;
+}
+
+bool sfz::Region::generateEGOpcodes(std::vector<Opcode> & retOpcodes, const EGDescription& eg, const std::string & prefix, bool forceAll) const
+{
+    
+    if (forceAll || eg.attack != Default::egTime.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"attack"), absl::StrCat(eg.attack));
+    }
+    if (forceAll || eg.decay != Default::egTime.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"decay"), absl::StrCat(eg.decay));
+    }
+    if (forceAll || eg.delay != Default::egTime.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"delay"), absl::StrCat(eg.delay));
+    }
+    if (forceAll || eg.hold != Default::egTime.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"hold"), absl::StrCat(eg.hold));
+    }
+    if (forceAll || eg.release != Default::egRelease.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"release"), absl::StrCat(eg.release));
+    }
+    if (forceAll || eg.start*100.0f != Default::egPercent.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"start"), absl::StrCat(eg.start*100.0f));
+    }
+    if (forceAll || eg.sustain*100.0f != Default::egSustain.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"sustain"), absl::StrCat(eg.sustain*100.0f));
+    }
+    if (forceAll || eg.vel2attack != Default::egTimeMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltoattack"), absl::StrCat(eg.vel2attack));
+    }
+    if (forceAll || eg.vel2decay != Default::egTimeMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltodecay"), absl::StrCat(eg.vel2decay));
+    }
+    if (forceAll || eg.vel2delay != Default::egTimeMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltodelay"), absl::StrCat(eg.vel2delay));
+    }
+    if (forceAll || eg.vel2hold != Default::egTimeMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltohold"), absl::StrCat(eg.vel2hold));
+    }
+    if (forceAll || eg.vel2release != Default::egTimeMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltorelease"), absl::StrCat(eg.vel2release));
+    }
+    if (forceAll || eg.vel2sustain*100.0f != Default::egPercentMod.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"veltosustain"), absl::StrCat(eg.vel2sustain*100.0f));
+    }
+    if (forceAll || eg.dynamic != Default::egDynamic.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"dynamic"), absl::StrCat(eg.dynamic));
+    }
+
+    for (const auto & val : eg.ccAttack) {
+        if (val.data != Default::egTimeMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "attack_oncc", val.cc), absl::StrCat(val.data));
+    }
+    for (const auto & val : eg.ccDecay) {
+        if (val.data != Default::egTimeMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "decay_oncc", val.cc), absl::StrCat(val.data));
+    }
+    for (const auto & val : eg.ccDelay) {
+        if (val.data != Default::egTimeMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "delay_oncc", val.cc), absl::StrCat(val.data));
+    }
+    for (const auto & val : eg.ccHold) {
+        if (val.data != Default::egTimeMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "hold_oncc", val.cc), absl::StrCat(val.data));
+    }
+    for (const auto & val : eg.ccRelease) {
+        if (val.data != Default::egTimeMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "release_oncc", val.cc), absl::StrCat(val.data));
+    }
+    for (const auto & val : eg.ccStart) {
+        if (val.data*100.0f != Default::egPercentMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "start_oncc", val.cc), absl::StrCat(val.data*100.0f));
+    }
+    for (const auto & val : eg.ccSustain) {
+        if (val.data*100.0f != Default::egPercentMod.defaultInputValue)
+            retOpcodes.emplace_back(absl::StrCat(prefix, "sustain_oncc", val.cc), absl::StrCat(val.data*100.0f));
+    }
+
+    
+    return true;
+}
+
+
+bool sfz::Region::generateLFOOpcodes(std::vector<Opcode> & retOpcodes, const LFODescription& lfo, const std::string & prefix, bool forceAll) const
+{
+    
+    if (forceAll || lfo.delay != Default::lfoDelay.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"delay"), absl::StrCat(lfo.delay));
+    }
+    if (forceAll || lfo.fade != Default::lfoFade.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"fade"), absl::StrCat(lfo.fade));
+    }
+    if (forceAll || lfo.freq != Default::lfoFreq.defaultInputValue) {
+        retOpcodes.emplace_back(absl::StrCat(prefix,"freq"), absl::StrCat(lfo.freq));
+    }
+
+    if (lfo.sub.size() > 0) {
+        if (forceAll || lfo.sub[0].wave != Default::lfoWave.defaultInputValue) {
+            retOpcodes.emplace_back(absl::StrCat(prefix,"wave"), absl::StrCat(lfo.sub[0].wave));
+        }
+    }
+
+    return true;
+}
+
+bool sfz::Region::generateConnections(std::vector<Opcode> & retOpcodes, bool forceAll) const
+{
+    auto generateForSource = [&retOpcodes, forceAll] (const std::string & srcpostfix, const Connection & conn, const std::string & valueOverride = "") {
+        
+        auto useval = !valueOverride.empty() ? valueOverride : absl::StrCat(conn.sourceDepth);
+        auto percentval = !valueOverride.empty() ? valueOverride : absl::StrCat(conn.sourceDepth*100.0f);
+
+        if (conn.target.id() == ModId::AmpLFODepth) {
+            if (forceAll || conn.sourceDepth != Default::volumeMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("amplfo_depth", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::PitchLFODepth) {
+            if (forceAll || conn.sourceDepth != Default::pitchMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pitchlfo_depth", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::FilLFODepth) {
+            if (forceAll || conn.sourceDepth != Default::filterCutoffMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("fillfo_depth", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::AmpLFOFrequency) {
+            if (forceAll || conn.sourceDepth != Default::lfoFreqMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("amplfo_freq", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::PitchLFOFrequency) {
+            if (forceAll || conn.sourceDepth != Default::lfoFreqMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pitchlfo_freq", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::FilLFOFrequency) {
+            if (forceAll || conn.sourceDepth != Default::lfoFreqMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("fillfo_freq", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::Volume) {
+            if (forceAll || conn.sourceDepth != Default::volumeMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("volume", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::Amplitude) {
+            if (forceAll || conn.sourceDepth*100.0f != Default::amplitudeMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("amplitude", srcpostfix), percentval);
+        }
+        else if (conn.target.id() == ModId::Pan) {
+            if (forceAll || conn.sourceDepth*100.0f != Default::panMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pan", srcpostfix), percentval);
+        }
+        else if (conn.target.id() == ModId::Position) {
+            if (forceAll || conn.sourceDepth*100.0f != Default::positionMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("position", srcpostfix), percentval);
+        }
+        else if (conn.target.id() == ModId::Width) {
+            if (forceAll || conn.sourceDepth*100.0f != Default::widthMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("width", srcpostfix), percentval);
+        }
+        else if (conn.target.id() == ModId::FilCutoff) {
+            if (forceAll || conn.sourceDepth != Default::filterCutoffMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("cutoff", conn.source.parameters().N+1, srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::FilResonance) {
+            if (forceAll || conn.sourceDepth != Default::filterResonanceMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("resonance", conn.source.parameters().N+1, srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::EqBandwidth) {
+            if (forceAll || conn.sourceDepth != Default::eqBandwidthMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("eq", conn.source.parameters().N+1, "_bw", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::EqFrequency) {
+            if (forceAll || conn.sourceDepth != Default::eqFrequencyMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("eq", conn.source.parameters().N+1, "_freq", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::EqGain) {
+            if (forceAll || conn.sourceDepth != Default::eqGainMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("eq", conn.source.parameters().N+1, "_gain", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::Pitch) {
+            if (forceAll || conn.sourceDepth != Default::pitchMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pitch", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::PitchEGDepth) {
+            if (forceAll || conn.sourceDepth != Default::pitchMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pitcheg_depth", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::FilEGDepth) {
+            if (forceAll || conn.sourceDepth != Default::filterCutoffMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("fileg_depth", srcpostfix), useval);
+        }
+
+        else if (conn.target.id() == ModId::OscillatorDetune) {
+            if (forceAll || conn.sourceDepth != Default::oscillatorDetuneMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("oscillator_detune", srcpostfix), useval);
+        }
+        else if (conn.target.id() == ModId::OscillatorModDepth) {
+            if (forceAll || conn.sourceDepth*100.0f != Default::oscillatorModDepthMod.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("oscillator_mod_depth", srcpostfix), percentval);
+        }
+        
+        // TODO v2 EG and LFO stuff
+        
+    };
+    
+    
+    for (const auto & conn : connections) {
+     
+        if (conn.source.id() == ModId::AmpLFO) {
+            if (forceAll || conn.sourceDepth != Default::ampLFODepth.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("amplfo_depth"), absl::StrCat(conn.sourceDepth));
+            
+        }
+        else if (conn.source.id() == ModId::PitchLFO) {
+            if (forceAll || conn.sourceDepth != Default::pitchLFODepth.defaultInputValue)
+                retOpcodes.emplace_back(absl::StrCat("pitchlfo_depth"), absl::StrCat(conn.sourceDepth));
+            
+        }
+        else if (conn.source.id() == ModId::PitchEG) {
+            if (conn.target.id() == ModId::Pitch) {
+                if (forceAll || conn.sourceDepth != Default::egDepth.defaultInputValue)
+                    retOpcodes.emplace_back(absl::StrCat("pitcheg_depth"), absl::StrCat(conn.sourceDepth));
+                if (forceAll || conn.velToDepth != Default::egVel2Depth.defaultInputValue)
+                    retOpcodes.emplace_back(absl::StrCat("pitcheg_veltodepth"), absl::StrCat(conn.velToDepth));
+            }
+        }
+        else if (conn.source.id() == ModId::FilEG) {
+            if (conn.target.id() == ModId::FilCutoff) {
+                if (forceAll || conn.sourceDepth != Default::egDepth.defaultInputValue)
+                    retOpcodes.emplace_back(absl::StrCat("fileg_depth"), absl::StrCat(conn.sourceDepth));
+                if (forceAll || conn.velToDepth != Default::egVel2Depth.defaultInputValue)
+                    retOpcodes.emplace_back(absl::StrCat("fileg_veltodepth"), absl::StrCat(conn.velToDepth));
+            }
+        }
+        else if (conn.source.id() == ModId::ChannelAftertouch) {
+            generateForSource("chanaft", conn);
+        }
+        else if (conn.source.id() == ModId::PolyAftertouch) {
+            generateForSource("polyaft", conn);
+        }
+        else if (conn.source.id() == ModId::Controller || conn.source.id() == ModId::PerVoiceController ) {
+            const auto & params = conn.source.parameters();
+
+            if (params.cc != Default::ccNumber) {
+                generateForSource(absl::StrCat("_oncc", params.cc), conn);
+            }
+            if (params.curve != Default::curveCC) {
+                generateForSource(absl::StrCat("_curvecc", params.cc), conn, absl::StrCat(params.curve));
+            }
+            if (params.smooth != Default::smoothCC) {
+                generateForSource(absl::StrCat("_smoothcc", params.cc), conn, absl::StrCat(params.smooth));
+            }
+            if (params.step != 0.0f) {
+                generateForSource(absl::StrCat("_stepcc", params.cc), conn, absl::StrCat(params.step));
+            }
+        }
+    }
+    
+    return true;
 }

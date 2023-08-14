@@ -8,6 +8,7 @@
 #include "Opcode.h"
 #include "SIMDHelpers.h"
 #include "utility/Debug.h"
+#include "absl/strings/str_cat.h"
 #include <spline/spline.h>
 #include <cmath>
 
@@ -39,7 +40,9 @@ Curve Curve::buildCurveFromHeader(
         if (index >= NumValues)
             continue;
 
-        setPoint(static_cast<int>(index), opc.read(fullRange));
+        auto val = opc.read(fullRange);
+        setPoint(static_cast<int>(index), val);
+        curve._origSpec.push_back({static_cast<int>(index), val});
     }
 
     curve.fill(itp, fillStatus);
@@ -51,6 +54,21 @@ Curve Curve::buildCurveFromHeader(
 
     return curve;
 }
+
+void Curve::generateOpcodes(std::vector<Opcode> & retOpcodes) const
+{
+    if (!_origSpec.empty()) {
+        for (auto spec : _origSpec) {
+            retOpcodes.emplace_back(absl::StrCat("v",spec.first), absl::StrCat(spec.second));
+        }
+    }
+    else {
+        for (size_t i=0; i < _points.size(); ++i) {
+            retOpcodes.emplace_back(absl::StrCat("v",i), absl::StrCat(_points[i]));
+        }
+    }
+}
+
 
 Curve Curve::buildFromVelcurvePoints(
     absl::Span<const std::pair<uint8_t, float>> points,
@@ -74,6 +92,7 @@ Curve Curve::buildFromVelcurvePoints(
 
     for (const auto& point: points) {
         setPoint(point.first, point.second);
+        curve._origSpec.push_back({point.first, point.second});
     }
 
     curve.fill(itp, fillStatus);
@@ -289,5 +308,14 @@ const Curve& CurveSet::getCurve(unsigned index) const
 
     return *curve;
 }
+
+const Curve* CurveSet::getRawCurve(unsigned index) const
+{
+    if (index < _curves.size())
+        return _curves[index].get();
+
+    return nullptr;
+}
+
 
 } // namespace sfz
