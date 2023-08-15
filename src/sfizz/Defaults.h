@@ -26,6 +26,7 @@
 #pragma once
 #include <limits>
 #include <cstdint>
+#include <cmath>
 #include <type_traits>
 #include "Range.h"
 #include "Config.h"
@@ -121,6 +122,54 @@ struct OpcodeSpec
      */
     template<class U=T>
     typename std::enable_if<!IsNormalizable<U>::value, U>::type normalizeInput(U input) const
+    {
+        return input;
+    }
+
+    /**
+     * @brief De-Normalizes a normalized value for output as needed for the spec
+     *
+     * @tparam U
+     * @param input
+     * @return U
+     */
+    template<class U=T>
+    typename std::enable_if<IsNormalizable<U>::value, U>::type denormalizeOutput(U output) const
+    {
+        constexpr int needsOperation {
+            kNormalizePercent |
+            kNormalizeMidi |
+            kNormalizeBend |
+            kDb2Mag
+        };
+
+        if (!(flags & needsOperation))
+            return output;
+        else if (flags & kNormalizePercent)
+            return static_cast<U>(output * U(100));
+        else if (flags & kNormalizeMidi) {
+            //if ((flags & kFillGap) && (output < U(1.0f)) && output >= 0.0f)
+            //    return std::nextafter(static_cast<U>((output * U(127)) - 1), 0.0f);
+            //else
+                return static_cast<U>(std::trunc(output * U(127))); // truncate it
+        }
+        else if (flags & kNormalizeBend)
+            return static_cast<U>(output * U(8191));
+        else if (flags & kDb2Mag)
+            return static_cast<U>(mag2db(output));
+        else // just in case
+            return output;
+    }
+
+    /**
+     * @brief Normalizes an input as needed for the spec
+     *
+     * @tparam U
+     * @param input
+     * @return U
+     */
+    template<class U=T>
+    typename std::enable_if<!IsNormalizable<U>::value, U>::type denormalizeOutput(U input) const
     {
         return input;
     }

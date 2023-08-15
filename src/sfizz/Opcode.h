@@ -137,6 +137,9 @@ struct Opcode {
     template <class T>
     static T transform(OpcodeSpec<T> spec, Intermediate<T> value) { return transformOptional(spec, value).value_or(spec); }
 
+    template <class T>
+    static std::string stringValue(OpcodeSpec<T> spec, T value);
+
 private:
     static OpcodeCategory identifyCategory(absl::string_view name);
     LEAK_DETECTOR(Opcode);

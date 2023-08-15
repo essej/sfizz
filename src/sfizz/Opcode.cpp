@@ -205,7 +205,13 @@ absl::optional<T> readInt_(OpcodeSpec<T> spec, absl::string_view v)
     absl::optional<T> Opcode::transformOptional(OpcodeSpec<T> spec, int64_t value) \
     {                                                                   \
         return transformInt_<T>(spec, value);                           \
+    }                                                                   \
+    template <>                                                         \
+    std::string Opcode::stringValue(OpcodeSpec<T> spec, T value)        \
+    {                                                                   \
+        return absl::StrCat(spec.denormalizeOutput(value));              \
     }
+
 
 INSTANTIATE_FOR_INTEGRAL(uint8_t)
 INSTANTIATE_FOR_INTEGRAL(uint16_t)
@@ -257,8 +263,12 @@ absl::optional<T> readFloat_(OpcodeSpec<T> spec, absl::string_view v)
     absl::optional<T> Opcode::transformOptional(OpcodeSpec<T> spec, T value) \
     {                                                                   \
         return transformFloat_<T>(spec, value);                         \
+    }                                                               \
+    template <>                                                         \
+    std::string Opcode::stringValue(OpcodeSpec<T> spec, T value)        \
+    {                                                                   \
+        return absl::StrCat(spec.denormalizeOutput(value));              \
     }
-
 INSTANTIATE_FOR_FLOATING_POINT(float)
 INSTANTIATE_FOR_FLOATING_POINT(double)
 
@@ -344,6 +354,15 @@ absl::optional<OscillatorEnabled> Opcode::readOptional(OpcodeSpec<OscillatorEnab
 
     return *v ? OscillatorEnabled::On : OscillatorEnabled::Off;
 }
+template <>
+std::string Opcode::stringValue(OpcodeSpec<OscillatorEnabled>, OscillatorEnabled value)
+{
+    switch (value) {
+        case OscillatorEnabled::Auto: return "auto";
+        case OscillatorEnabled::On: return "on";
+        default: return "off";
+    };
+}
 
 template <class E>
 absl::optional<E> transformEnum_(OpcodeSpec<E> spec, int64_t value)
@@ -379,6 +398,18 @@ absl::optional<Trigger> Opcode::readOptional(OpcodeSpec<Trigger>, absl::string_v
     DBG("Unknown trigger value: " << value);
     return absl::nullopt;
 }
+template <>
+std::string Opcode::stringValue(OpcodeSpec<Trigger>, Trigger value)
+{
+    switch (value) {
+        case Trigger::attack: return "attack";
+        case Trigger::first: return "first";
+        case Trigger::legato: return "legato";
+        case Trigger::release: return "release";
+        case Trigger::release_key: return "release_key";
+    };
+    return "";
+}
 
 INSTANTIATE_FOR_ENUM(Trigger)
 
@@ -392,6 +423,15 @@ absl::optional<CrossfadeCurve> Opcode::readOptional(OpcodeSpec<CrossfadeCurve>, 
 
     DBG("Unknown crossfade power curve: " << value);
     return absl::nullopt;
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<CrossfadeCurve>, CrossfadeCurve value)
+{
+    switch (value) {
+        case CrossfadeCurve::power: return "power";
+        case CrossfadeCurve::gain: return "gain";
+    };
+    return "";
 }
 
 INSTANTIATE_FOR_ENUM(CrossfadeCurve)
@@ -407,6 +447,16 @@ absl::optional<OffMode> Opcode::readOptional(OpcodeSpec<OffMode>, absl::string_v
 
     DBG("Unknown off mode: " << value);
     return absl::nullopt;
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<OffMode>, OffMode value)
+{
+    switch (value) {
+        case OffMode::fast: return "fast";
+        case OffMode::normal: return "normal";
+        case OffMode::time: return "time";
+    };
+    return "";
 }
 
 INSTANTIATE_FOR_ENUM(OffMode)
@@ -443,6 +493,38 @@ absl::optional<FilterType> Opcode::readOptional(OpcodeSpec<FilterType>, absl::st
     DBG("Unknown/unsupported filter type: " << value);
     return absl::nullopt;
 }
+template <>
+std::string Opcode::stringValue(OpcodeSpec<FilterType>, FilterType value)
+{
+    switch (value) {
+        case kFilterLpf1p: return "lpf_1p";
+        case kFilterHpf1p: return "hpf_1p";
+        case kFilterLpf2p: return "lpf_2p";
+        case kFilterHpf2p: return "hpf_2p";
+        case kFilterBpf2p: return "bpf_2p";
+        case kFilterBrf1p: return "brf_1p";
+        case kFilterBrf2p: return "brf_2p";
+        case kFilterBpf1p: return "bpf_1p";
+        // case kFilterApf1p: return "apf_1p"; // TODO: replace with the delay-less version later
+        case kFilterLpf2pSv: return "lpf_2p_sv";
+        case kFilterHpf2pSv: return "hpf_2p_sv";
+        case kFilterBpf2pSv: return "bpf_2p_sv";
+        case kFilterBrf2pSv: return "brf_2p_sv";
+        case kFilterBpf4p: return "bpf_4p";
+        case kFilterBpf6p: return "bpf_6p";
+        case kFilterLpf4p: return "lpf_4p";
+        case kFilterHpf4p: return "hpf_4p";
+        case kFilterLpf6p: return "lpf_6p";
+        case kFilterHpf6p: return "hpf_6p";
+        case kFilterPink: return "pink";
+        case kFilterLsh: return "lsh";
+        case kFilterHsh: return "hsh";
+        case kFilterPeq: return "peq";
+        case kFilterNone: return "";
+        case kFilterApf1p: return "apf_1p";
+    };
+    return "";
+}
 
 INSTANTIATE_FOR_ENUM(FilterType)
 
@@ -458,7 +540,17 @@ absl::optional<EqType> Opcode::readOptional(OpcodeSpec<EqType>, absl::string_vie
     DBG("Unknown EQ type: " << value);
     return absl::nullopt;
 }
-
+template <>
+std::string Opcode::stringValue(OpcodeSpec<EqType>, EqType value)
+{
+    switch (value) {
+        case kEqPeak: return "peak";
+        case kEqLshelf: return "lshelf";
+        case kEqHshelf: return "hshelf";
+        case kEqNone: return "";
+    };
+    return "";
+}
 INSTANTIATE_FOR_ENUM(EqType)
 
 template <>
@@ -471,6 +563,15 @@ absl::optional<VelocityOverride> Opcode::readOptional(OpcodeSpec<VelocityOverrid
 
     DBG("Unknown velocity override: " << value);
     return absl::nullopt;
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<VelocityOverride>, VelocityOverride value)
+{
+    switch (value) {
+        case VelocityOverride::current: return "current";
+        case VelocityOverride::previous: return "previous";
+    };
+    return "";
 }
 
 INSTANTIATE_FOR_ENUM(VelocityOverride)
@@ -486,6 +587,15 @@ absl::optional<SelfMask> Opcode::readOptional(OpcodeSpec<SelfMask>, absl::string
 
     DBG("Unknown velocity override: " << value);
     return absl::nullopt;
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<SelfMask>, SelfMask value)
+{
+    switch (value) {
+        case SelfMask::mask: return "on";
+        case SelfMask::dontMask: return "off";
+    };
+    return "";
 }
 
 INSTANTIATE_FOR_ENUM(SelfMask)
@@ -503,6 +613,17 @@ absl::optional<LoopMode> Opcode::readOptional(OpcodeSpec<LoopMode>, absl::string
     DBG("Unknown loop mode: " << value);
     return absl::nullopt;
 }
+template <>
+std::string Opcode::stringValue(OpcodeSpec<LoopMode>, LoopMode value)
+{
+    switch (value) {
+        case LoopMode::no_loop: return "no_loop";
+        case LoopMode::one_shot: return "one_shot";
+        case LoopMode::loop_continuous: return "loop_continuous";
+        case LoopMode::loop_sustain: return "loop_sustain";
+    };
+    return "";
+}
 
 INSTANTIATE_FOR_ENUM(LoopMode)
 
@@ -510,6 +631,11 @@ template <>
 absl::optional<bool> Opcode::readOptional(OpcodeSpec<bool>, absl::string_view value)
 {
     return readBoolean(value);
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<bool>, bool value)
+{
+    return value ? "on" : "off";
 }
 
 template <>
@@ -525,6 +651,11 @@ absl::optional<LFOWave> Opcode::readOptional(OpcodeSpec<LFOWave> spec, absl::str
         return static_cast<LFOWave>(*intValue);
 
     return absl::nullopt;
+}
+template <>
+std::string Opcode::stringValue(OpcodeSpec<LFOWave>, LFOWave value)
+{
+    return absl::StrCat(value);
 }
 
 INSTANTIATE_FOR_ENUM(LFOWave)

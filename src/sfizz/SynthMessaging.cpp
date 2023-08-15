@@ -399,20 +399,9 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
                 break;
             }
 
-            switch (*region.loopMode) {
-            case LoopMode::no_loop:
-                client.receive<'s'>(delay, path, "no_loop");
-                break;
-            case LoopMode::loop_continuous:
-                client.receive<'s'>(delay, path, "loop_continuous");
-                break;
-            case LoopMode::loop_sustain:
-                client.receive<'s'>(delay, path, "loop_sustain");
-                break;
-            case LoopMode::one_shot:
-                client.receive<'s'>(delay, path, "one_shot");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::loopMode, *region.loopMode);
+            client.receive<'s'>(delay, path, lstr.c_str());
+
         } break;
         MATCH("/region&/loop_mode", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -481,17 +470,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
             
         MATCH("/region&/off_mode", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.offMode) {
-            case OffMode::time:
-                client.receive<'s'>(delay, path, "time");
-                break;
-            case OffMode::normal:
-                client.receive<'s'>(delay, path, "normal");
-                break;
-            case OffMode::fast:
-                client.receive<'s'>(delay, path, "fast");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::offMode, region.offMode);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/off_mode", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -687,14 +667,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
             
         MATCH("/region&/sw_vel", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.velocityOverride) {
-            case VelocityOverride::current:
-                client.receive<'s'>(delay, path, "current");
-                break;
-            case VelocityOverride::previous:
-                client.receive<'s'>(delay, path, "previous");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::velocityOverride, region.velocityOverride);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
 
         MATCH("/region&/chanaft_range", "") {
@@ -770,23 +744,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
             
         MATCH("/region&/trigger", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.trigger) {
-            case Trigger::attack:
-                client.receive<'s'>(delay, path, "attack");
-                break;
-            case Trigger::first:
-                client.receive<'s'>(delay, path, "first");
-                break;
-            case Trigger::release:
-                client.receive<'s'>(delay, path, "release");
-                break;
-            case Trigger::release_key:
-                client.receive<'s'>(delay, path, "release_key");
-                break;
-            case Trigger::legato:
-                client.receive<'s'>(delay, path, "legato");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::trigger, region.trigger);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/trigger", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -1221,14 +1180,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
 
         MATCH("/region&/xf_keycurve", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.crossfadeKeyCurve) {
-            case CrossfadeCurve::gain:
-                client.receive<'s'>(delay, path, "gain");
-                break;
-            case CrossfadeCurve::power:
-                client.receive<'s'>(delay, path, "power");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::crossfadeCurve, region.crossfadeKeyCurve);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/xf_keycurve", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -1237,14 +1190,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
             
         MATCH("/region&/xf_velcurve", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.crossfadeVelCurve) {
-            case CrossfadeCurve::gain:
-                client.receive<'s'>(delay, path, "gain");
-                break;
-            case CrossfadeCurve::power:
-                client.receive<'s'>(delay, path, "power");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::crossfadeCurve, region.crossfadeVelCurve);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/xf_velcurve", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -1253,14 +1200,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
 
         MATCH("/region&/xf_cccurve", "") {
             GET_REGION_OR_BREAK(indices[0])
-            switch (region.crossfadeCCCurve) {
-            case CrossfadeCurve::gain:
-                client.receive<'s'>(delay, path, "gain");
-                break;
-            case CrossfadeCurve::power:
-                client.receive<'s'>(delay, path, "power");
-                break;
-            }
+            auto lstr = Opcode::stringValue(Default::crossfadeCurve, region.crossfadeCCCurve);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/xf_cccurve", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -2116,32 +2057,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
         MATCH("/region&/filter&/type", "") {
             GET_REGION_OR_BREAK(indices[0])
             GET_FILTER_OR_BREAK(indices[1])
-            switch (filter.type) {
-            case FilterType::kFilterLpf1p: client.receive<'s'>(delay, path, "lpf_1p"); break;
-            case FilterType::kFilterHpf1p: client.receive<'s'>(delay, path, "hpf_1p"); break;
-            case FilterType::kFilterLpf2p: client.receive<'s'>(delay, path, "lpf_2p"); break;
-            case FilterType::kFilterHpf2p: client.receive<'s'>(delay, path, "hpf_2p"); break;
-            case FilterType::kFilterBpf2p: client.receive<'s'>(delay, path, "bpf_2p"); break;
-            case FilterType::kFilterBrf2p: client.receive<'s'>(delay, path, "brf_2p"); break;
-            case FilterType::kFilterBpf1p: client.receive<'s'>(delay, path, "bpf_1p"); break;
-            case FilterType::kFilterBrf1p: client.receive<'s'>(delay, path, "brf_1p"); break;
-            case FilterType::kFilterApf1p: client.receive<'s'>(delay, path, "apf_1p"); break;
-            case FilterType::kFilterLpf2pSv: client.receive<'s'>(delay, path, "lpf_2p_sv"); break;
-            case FilterType::kFilterHpf2pSv: client.receive<'s'>(delay, path, "hpf_2p_sv"); break;
-            case FilterType::kFilterBpf2pSv: client.receive<'s'>(delay, path, "bpf_2p_sv"); break;
-            case FilterType::kFilterBrf2pSv: client.receive<'s'>(delay, path, "brf_2p_sv"); break;
-            case FilterType::kFilterLpf4p: client.receive<'s'>(delay, path, "lpf_4p"); break;
-            case FilterType::kFilterHpf4p: client.receive<'s'>(delay, path, "hpf_4p"); break;
-            case FilterType::kFilterLpf6p: client.receive<'s'>(delay, path, "lpf_6p"); break;
-            case FilterType::kFilterHpf6p: client.receive<'s'>(delay, path, "hpf_6p"); break;
-            case FilterType::kFilterPink: client.receive<'s'>(delay, path, "pink"); break;
-            case FilterType::kFilterLsh: client.receive<'s'>(delay, path, "lsh"); break;
-            case FilterType::kFilterHsh: client.receive<'s'>(delay, path, "hsh"); break;
-            case FilterType::kFilterPeq: client.receive<'s'>(delay, path, "peq"); break;
-            case FilterType::kFilterBpf4p: client.receive<'s'>(delay, path, "bpf_4p"); break;
-            case FilterType::kFilterBpf6p: client.receive<'s'>(delay, path, "bpf_6p"); break;
-            case FilterType::kFilterNone: client.receive<'s'>(delay, path, "none"); break;
-            }
+            auto lstr = Opcode::stringValue(Default::filter, filter.type);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/filter&/type", "s") {
             GET_REGION_OR_BREAK(indices[0])
@@ -2215,12 +2132,8 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
         MATCH("/region&/eq&/type", "") {
             GET_REGION_OR_BREAK(indices[0])
             GET_EQ_OR_BREAK(indices[1])
-            switch (eq.type) {
-            case EqType::kEqNone: client.receive<'s'>(delay, path, "none"); break;
-            case EqType::kEqPeak: client.receive<'s'>(delay, path, "peak"); break;
-            case EqType::kEqLshelf: client.receive<'s'>(delay, path, "lshelf"); break;
-            case EqType::kEqHshelf: client.receive<'s'>(delay, path, "hshelf"); break;
-            }
+            auto lstr = Opcode::stringValue(Default::eq, eq.type);
+            client.receive<'s'>(delay, path, lstr.c_str());
         } break;
         MATCH("/region&/eq&/type", "s") {
             GET_REGION_OR_BREAK(indices[0])
