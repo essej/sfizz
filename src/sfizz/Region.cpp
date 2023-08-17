@@ -563,6 +563,15 @@ bool sfz::Region::parseOpcode(const Opcode& rawOpcode, bool cleanOpcode)
         groupVolume = opcode.read(Default::volume);
         break;
 
+    case hash("lotimer"):
+        timerRange.setStart(opcode.read(Default::loTimer));
+        useTimerRange = useTimerRange || timerRange.getStart() != Default::loTimer;
+        break;
+    case hash("hitimer"):
+        timerRange.setEnd(opcode.read(Default::hiTimer));
+        useTimerRange = useTimerRange || timerRange.getEnd() != Default::hiTimer;
+        break;
+
     // Performance parameters: filters
     case hash("cutoff&"): // also cutoff
         {
@@ -2171,10 +2180,10 @@ bool sfz::Region::generateOpcodes(std::vector<Opcode> & retOpcodes, bool forceAl
     }
 
     for (const auto & val : ccTriggers) {
-        if (val.data.getStart() != Default::loNormalized)
-            retOpcodes.emplace_back(absl::StrCat("start_lohdcc", val.cc), Opcode::stringValue(Default::loNormalized, val.data.getStart()));
-        if (val.data.getEnd() != Default::hiNormalized)
-            retOpcodes.emplace_back(absl::StrCat("start_hihdcc", val.cc), Opcode::stringValue(Default::hiNormalized, val.data.getEnd()));
+        if (val.data.getStart() != Default::loCC)
+            retOpcodes.emplace_back(absl::StrCat("start_locc", val.cc), Opcode::stringValue(Default::loCC, val.data.getStart()));
+        if (val.data.getEnd() != Default::hiCC)
+            retOpcodes.emplace_back(absl::StrCat("start_hicc", val.cc), Opcode::stringValue(Default::hiCC, val.data.getEnd()));
     }
 
     
@@ -2300,6 +2309,13 @@ bool sfz::Region::generateOpcodes(std::vector<Opcode> & retOpcodes, bool forceAl
     }
     if (forceAll || groupVolume != Default::volume) {
         retOpcodes.emplace_back("group_volume", Opcode::stringValue(Default::volume, groupVolume));
+    }
+
+    if (forceAll || timerRange.getStart() != Default::loTimer) {
+        retOpcodes.emplace_back("lotimer", Opcode::stringValue(Default::loTimer, timerRange.getStart()));
+    }
+    if (forceAll || timerRange.getEnd() != Default::hiTimer) {
+        retOpcodes.emplace_back("hitimer", Opcode::stringValue(Default::hiTimer, timerRange.getEnd()));
     }
 
     for (size_t i=0; i < filters.size(); ++i) {

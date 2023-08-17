@@ -1355,6 +1355,7 @@ void Synth::Impl::noteOnDispatch(int delay, int noteNumber, float velocity) noex
 {
     const auto randValue = randNoteDistribution_(Random::randomGenerator);
     SisterVoiceRingBuilder ring;
+    MidiState& midiState = resources_.getMidiState();
 
     if (!lastKeyswitchLists_[noteNumber].empty()) {
         if (currentSwitch_ && *currentSwitch_ != noteNumber) {
@@ -1376,6 +1377,9 @@ void Synth::Impl::noteOnDispatch(int delay, int noteNumber, float velocity) noex
     for (Layer* layer : noteActivationLists_[noteNumber]) {
         if (layer->registerNoteOn(noteNumber, velocity, randValue)) {
             const Region& region = layer->getRegion();
+            if (region.useTimerRange && ! voiceManager_.withinValidTimerRange(&region, midiState.getInternalClock() + delay, sampleRate_))
+                continue;
+
             checkOffGroups(&region, delay, noteNumber);
             TriggerEvent triggerEvent { TriggerEventType::NoteOn, noteNumber, velocity };
             startVoice(layer, delay, triggerEvent, ring);
@@ -1432,6 +1436,7 @@ void Synth::Impl::ccDispatch(int delay, int ccNumber, float value) noexcept
     SisterVoiceRingBuilder ring;
     TriggerEvent triggerEvent { TriggerEventType::CC, ccNumber, value };
     const auto randValue = randNoteDistribution_(Random::randomGenerator);
+    MidiState& midiState = resources_.getMidiState();
     for (Layer* layer : ccActivationLists_[ccNumber]) {
         const Region& region = layer->getRegion();
 
@@ -1450,6 +1455,9 @@ void Synth::Impl::ccDispatch(int delay, int ccNumber, float value) noexcept
         }
 
         if (layer->registerCC(ccNumber, value, randValue)) {
+            if (region.useTimerRange && ! voiceManager_.withinValidTimerRange(&region, midiState.getInternalClock() + delay, sampleRate_))
+                continue;
+
             checkOffGroups(&region, delay, ccNumber);
             startVoice(layer, delay, triggerEvent, ring);
         }
