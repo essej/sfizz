@@ -100,6 +100,7 @@ void pan(const float* panEnvelope, float* leftBuffer, float* rightBuffer, unsign
 
 inline void tickWidth(const float* width, float* leftBuffer, float* rightBuffer)
 {
+#if 0
     float w = (*width + 1.0f) * 0.5f;
     w = clamp(w, 0.0f, 1.0f);
     const auto coeff1 = panLookup(w);
@@ -108,12 +109,24 @@ inline void tickWidth(const float* width, float* leftBuffer, float* rightBuffer)
     const auto r = *rightBuffer;
     *leftBuffer = l * coeff2 + r * coeff1;
     *rightBuffer = l * coeff1 + r * coeff2;
+#else
+    // M-S technique, can support width > 1.0
+    // L = ((L+R) + (L-R)*width)/2
+    // R = ((L+R) + (R-L)*width)/2
+    const auto w = *width;
+    const auto l = *leftBuffer;
+    const auto r = *rightBuffer;
+    const auto mid = l + r;
+    *leftBuffer  = 0.5f * (mid + w * (l - r));
+    *rightBuffer = 0.5f * (mid + w * (r - l));
+#endif
 }
 
 void width(const float* widthEnvelope, float* leftBuffer, float* rightBuffer, unsigned size) noexcept
 {
     const auto* sentinel = widthEnvelope + size;
 
+#if 0
 #if SFIZZ_HAVE_NEON
     const auto* firstAligned = prevAligned<ByteAlignment>(widthEnvelope + TypeAlignment  - 1);
 
@@ -158,7 +171,8 @@ void width(const float* widthEnvelope, float* leftBuffer, float* rightBuffer, un
         }
     }
 #endif // SFIZZ_HAVE_NEON
-
+#endif
+    
     while (widthEnvelope < sentinel) {
         tickWidth(widthEnvelope, leftBuffer, rightBuffer);
         incrementAll(widthEnvelope, leftBuffer, rightBuffer);
