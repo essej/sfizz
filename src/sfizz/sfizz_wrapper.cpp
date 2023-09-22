@@ -31,6 +31,16 @@ bool sfizz_load_string(sfizz_synth_t* synth, const char* path, const char* text)
     return synth->synth.loadSfzString(path, text);
 }
 
+bool sfizz_add_string(sfizz_synth_t* synth, const char* text)
+{
+    return synth->synth.addSfzString(text);
+}
+
+bool sfizz_save_file(sfizz_synth_t* synth, const char* path)
+{
+    return synth->synth.saveSfzFile(path);
+}
+
 bool sfizz_load_scala_file(sfizz_synth_t* synth, const char* path)
 {
     return synth->synth.loadScalaFile(path);

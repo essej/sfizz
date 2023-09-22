@@ -142,6 +142,20 @@ public:
     bool loadSfzString(const std::string& path, const std::string& text);
 
     /**
+     * @brief Adds the regions specified in a block of SFZ headers and opcodes.
+     *
+     * This is similar to loadSfzString() in functionality, except it doesn't clear the existing
+     * regions. It uses the same path or virtual path of the previously loaded SFZ. The internal group and
+     * master header states are cleared before parsing this.
+     *
+     * @param text The contents of the portion of virtual SFZ file to add
+     *
+     * @return @false if no regions were added,
+     *         @true otherwise.
+     */
+    bool addSfzString(const std::string& text);
+    
+    /**
      * @brief Saves the contents of the currently loaded instrument to a new file
      *
      * The saved file will most likely not be the same as the loaded file (unless it was generated from this function),

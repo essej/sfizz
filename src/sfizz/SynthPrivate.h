@@ -15,6 +15,7 @@
 #include "modulations/sources/LFO.h"
 #include "parser/Parser.h"
 #include "parser/ParserListener.h"
+#include <atomic_queue/atomic_queue.h>
 
 namespace sfz {
 
@@ -117,7 +118,7 @@ struct Synth::Impl final: public Parser::Listener {
     /**
      * @brief Establish all connections of the modulation matrix.
      */
-    void setupModMatrix();
+    void setupModMatrix(size_t startRegionIdx=0);
 
     /**
      * @brief Get the modification time of all included sfz files
@@ -201,8 +202,10 @@ struct Synth::Impl final: public Parser::Listener {
      * @brief Finalize SFZ loading, following a successful execution of the
      * parsing step. The behavior of this function is changed by the reloading
      * state.
+     *
+     * @param startRegionIdx finalize new regions starting with this index
      */
-    void finalizeSfzLoad();
+    void finalizeSfzLoad(size_t startRegionIdx=0);
 
     /**
      * @brief Actually save the current instrument state as a monolithic SFZ into.
@@ -274,6 +277,15 @@ struct Synth::Impl final: public Parser::Listener {
      */
     void resetCallbackBreakdown();
 
+    /**
+     * @brief Remove any references to this region in the mod matrix, etc. called before
+     * a region is removed from the instrument.
+     *
+     * @param region
+     */
+    void cleanupRegionReferences(const Region* region);
+
+    
     int numGroups_ { 0 };
     int numMasters_ { 0 };
     int numOutputs_ { 1 };
@@ -330,7 +342,8 @@ struct Synth::Impl final: public Parser::Listener {
     float sampleRate_ { config::defaultSampleRate };
     float volume_ { Default::globalVolume };
     int numVoices_ { config::numVoices };
-
+    int nextRegionNumber_ { 0 };
+    
     // Distribution used to generate random value for the *rand opcodes
     std::uniform_real_distribution<float> randNoteDistribution_ { 0, 1 };
 
@@ -383,6 +396,9 @@ struct Synth::Impl final: public Parser::Listener {
     BitArray<config::numCCs> changedCCsThisCycle_;
     BitArray<config::numCCs> changedCCsLastCycle_;
 
+    using LayerQueue = atomic_queue::AtomicQueue2<std::unique_ptr<Layer>, 1024>;
+    LayerQueue layersToDelete_;
+    
     // Messaging
     sfizz_receive_t* broadcastReceiver = nullptr;
     void* broadcastData = nullptr;

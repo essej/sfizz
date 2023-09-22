@@ -119,6 +119,21 @@ public:
      *         @true otherwise.
      */
     bool loadSfzString(const fs::path& path, absl::string_view text);
+    
+    /**
+     * @brief Adds the regions specified in a block of SFZ headers and opcodes.
+     *
+     * This is similar to loadSfzString() in functionality, except it doesn't clear the existing
+     * regions. It uses the same path or virtual path of the previously loaded SFZ. The internal group and
+     * master header states are cleared before parsing this.
+     *
+     * @param text The contents of the portion of virtual SFZ file to add
+     *
+     * @return @false if no regions were added,
+     *         @true otherwise.
+     */
+    bool addSfzString(absl::string_view text);
+    
     /**
      * @brief Saves the contents of the currently loaded instrument to a new file
      *
@@ -216,12 +231,39 @@ public:
      */
     Layer* getLayerById(NumericId<Region> id) noexcept;
     /**
+     * @brief Find the layer index which is associated with the given identifier.
+     *
+     * @param id
+     * @return absl::optional<size_t>
+     */
+    absl::optional<size_t> getLayerIndexById(NumericId<Region> id) const noexcept;
+    
+    /**
      * @brief Find the region which is associated with the given identifier.
      *
      * @param id
      * @return const Region*
      */
     const Region* getRegionById(NumericId<Region> id) const noexcept;
+    /**
+     * @brief Remove the region which is associated with the given identifier.
+     * Should not be called on or at the same time as the RT audio thread context.
+     *
+     * @param id
+     * @return bool ,true if successful
+     */
+    bool removeRegionById(NumericId<Region> id, bool rebuildModMatrix=false) noexcept;
+    /**
+     * @brief Remove multiple regions which are associated with the given list of identifiers.
+     *
+     * Should not be called on or at the same time as the RT audio thread context.
+     *
+     * @param regionIds
+     * @param rebuildModMatrix if true completely rebuilds mod matrix so it doesn't include connections to deleted regions
+     * @return bool ,true if successful
+     */
+    bool removeRegionsById(const std::vector<NumericId<Region>> & regionIds, bool rebuildModMatrix=true) noexcept;
+
     /**
      * @brief Get a raw view into a specific layer. This is mostly used
      * for testing.

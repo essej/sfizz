@@ -11,6 +11,8 @@
 #include "SynthConfig.h"
 #include "utility/StringViewHelpers.h"
 #include <absl/strings/ascii.h>
+#include <absl/strings/numbers.h>
+#include <absl/strings/str_split.h>
 #include <cstring>
 
 // TODO: `ccModDepth` and `ccModParameters` are O(N), need better implementation
@@ -234,6 +236,42 @@ void sfz::Synth::dispatchMessage(Client& client, int delay, const char* path, co
         } break;
 
         //----------------------------------------------------------------------
+        // These region removal commands should only be called when the
+        // realtime render callback is NOT being run, and not from the RT context
+            
+        MATCH("/remove_region_by_id", "i") {
+            if (removeRegionById(NumericId<Region>(args[0].i))) {
+                client.receive<'T'>(delay, path, {});
+            } else {
+                client.receive<'F'>(delay, path, {});
+            }
+        } break;
+
+        MATCH("/remove_regions_by_id", "s") {
+            // takes a whitespace separated list of id numbers in a string
+            std::vector<std::string> strids = absl::StrSplit(args[0].s, absl::ByAnyChar(" \t\n\r"),
+                                                        absl::SkipWhitespace());
+            std::vector<NumericId<Region>> regids;
+            regids.reserve(strids.size());
+            int rid;
+            for (auto & sv : strids) {
+                if (absl::SimpleAtoi(sv, &rid))
+                    regids.emplace_back(rid);
+            }
+            
+            if (removeRegionsById(regids, true)) {
+                client.receive<'T'>(delay, path, {});
+            } else {
+                client.receive<'F'>(delay, path, {});
+            }
+        } break;
+
+        //----------------------------------------------------------------------
+
+        MATCH("/region&/id", "") {
+            GET_REGION_OR_BREAK(indices[0])
+            client.receive<'i'>(delay, path, region.id.number());
+        } break;
 
         MATCH("/region&/delay", "") {
             GET_REGION_OR_BREAK(indices[0])

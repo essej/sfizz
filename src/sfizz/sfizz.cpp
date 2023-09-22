@@ -55,6 +55,11 @@ bool sfz::Sfizz::loadSfzString(const std::string& path, const std::string& text)
     return synth->synth.loadSfzString(path, text);
 }
 
+bool  sfz::Sfizz::addSfzString(const std::string& text)
+{
+    return synth->synth.addSfzString(text);
+}
+
 bool sfz::Sfizz::saveSfzFile(const std::string& path) const
 {
     return synth->synth.saveSfzFile(path);

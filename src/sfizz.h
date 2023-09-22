@@ -148,6 +148,44 @@ SFIZZ_EXPORTED_API bool sfizz_load_file(sfizz_synth_t* synth, const char* path);
 SFIZZ_EXPORTED_API bool sfizz_load_string(sfizz_synth_t* synth, const char* path, const char* text);
 
 /**
+ * @brief Adds the regions specified in a block of SFZ headers and opcodes.
+ *
+ * This is similar to loadSfzString() in functionality, except it doesn't clear the existing
+ * regions. It uses the same path or virtual path of the previously loaded SFZ. The internal group and
+ * master header states are cleared before parsing this.
+ *
+ * @param synth  The synth.
+ * @param text The contents of the portion of virtual SFZ file to add
+ *
+ * @return @false if no regions were added,
+ *         @true otherwise.
+ *
+ * @par Thread-safety constraints
+ * - @b CT: the function must be invoked from the Control thread
+ * - @b OFF: the function cannot be invoked while a thread is calling @b RT functions
+ */
+SFIZZ_EXPORTED_API bool sfizz_add_string(sfizz_synth_t* synth, const char* text);
+
+/**
+ * @brief Saves the contents of the currently loaded instrument to a new file
+ *
+ * The saved file will most likely not be the same as the loaded file (unless it was generated from this function),
+ * as it generates a monolithic SFZ from the internal region state. This can be used when
+ * changes were made to region properties (by an SFZ editor using this library, for example)
+ * and you want to save the changes you made. It makes a best effort to retain group/global/master
+ * hierarchy and outputs only the opcodes necessary, but it will not use any definitions or #includes
+ * like the original input might have.
+ *
+ * @param file
+ * @return @true when the file saved successfully
+ *         @false if some error occured while saving to this location
+ *         
+ * @par Thread-safety constraints
+ * - @b CT: the function must be invoked from the Control thread
+ */
+SFIZZ_EXPORTED_API bool sfizz_save_file(sfizz_synth_t* synth, const char* path);
+
+/**
  * @brief Sets the tuning from a Scala file loaded from the file system.
  * @since 0.4.0
  *

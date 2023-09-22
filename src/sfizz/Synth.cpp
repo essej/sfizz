@@ -237,6 +237,18 @@ void Synth::Impl::buildRegion(const std::vector<Opcode>& regionOpcodes)
     lastLayer->initializeActivations();
 }
 
+void Synth::Impl::cleanupRegionReferences(const Region* region)
+{
+    for (auto& voice : voiceManager_) {
+        if (voice.getRegion() == region)
+            voice.reset();
+    }
+    
+    // unfortunately the mod matrix is not set up to easily remove things
+    // because all its ids are indexes
+    // so a full clear and setup of the MM is probably a good idea upstream
+}
+
 void Synth::Impl::addEffectBusesIfNecessary(uint16_t output)
 {
     while (effectBuses_.size() <= output) {
@@ -289,6 +301,7 @@ void Synth::Impl::clear()
     numOutputs_ = 1;
     noteOffset_ = 0;
     octaveOffset_ = 0;
+    nextRegionNumber_ = 0;
     currentSwitch_ = absl::nullopt;
     defaultPath_ = "";
     image_ = "";
@@ -694,12 +707,43 @@ bool Synth::loadSfzString(const fs::path& path, absl::string_view text)
     return true;
 }
 
+bool Synth::addSfzString(absl::string_view text)
+{
+    Impl& impl = *impl_;
+
+    impl.reloading = true;
+    size_t startIdx = getNumRegions();
+    
+    // clear global opcodes too?
+    impl.masterOpcodes_.clear();
+    impl.groupOpcodes_.clear();
+    
+    bool success = true;
+    Parser& parser = impl.parser_;
+    parser.parseString(impl.lastPath_, text);
+
+    // permissive parsing for compatibility
+    if (!loaderParsesPermissively)
+        success = parser.getErrorCount() == 0;
+
+    success = success && !impl.layers_.empty();
+
+    if (!success) {
+        DBG("[sfizz] Adding SFZ string failed");
+        parser.clear();
+        return false;
+    }
+
+    impl.finalizeSfzLoad(startIdx);
+    return true;
+}
+
 void Synth::Impl::setCurrentSwitch(uint8_t noteValue)
 {
     currentSwitch_ = noteValue + 12 * octaveOffset_ + noteOffset_;
 }
 
-void Synth::Impl::finalizeSfzLoad()
+void Synth::Impl::finalizeSfzLoad(size_t startRegionIdx)
 {
     FilePool& filePool = resources_.getFilePool();
     WavetablePool& wavePool = resources_.getWavePool();
@@ -710,7 +754,7 @@ void Synth::Impl::finalizeSfzLoad()
     // a string representation used for OSC purposes
     rootPath_ = rootDirectory.u8string();
 
-    size_t currentRegionIndex = 0;
+    size_t currentRegionIndex = startRegionIdx;
     size_t currentRegionCount = layers_.size();
 
     absl::flat_hash_map<sfz::FileId, int64_t> filesToLoad;
@@ -895,15 +939,15 @@ void Synth::Impl::finalizeSfzLoad()
     }
 
     // Reset the preload call count to check for unused preloaded samples
-    // when reloading
-    if (reloading)
+    // when reloading, but only when it's a full reload
+    if (reloading && startRegionIdx == 0)
         filePool.resetPreloadCallCounts();
 
     for (const auto& toLoad: filesToLoad)
         filePool.preloadFile(toLoad.first, toLoad.second);
 
     // Remove preloaded data with no linked regions
-    if (reloading)
+    if (reloading && startRegionIdx == 0)
         filePool.removeUnusedPreloadedData();
 
     // Remove bad regions with unknown files
@@ -915,8 +959,8 @@ void Synth::Impl::finalizeSfzLoad()
 
     // collect all CCs used in regions, with matrix not yet connected
     BitArray<config::numCCs> usedCCs;
-    for (const LayerPtr& layerPtr : layers_) {
-        const Region& region = layerPtr->getRegion();
+    for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
+        const Region& region = (*iter)->getRegion();
         collectUsedCCsFromRegion(usedCCs, region);
         for (const Region::Connection& connection : region.connections) {
             if (connection.source.id() == ModId::Controller)
@@ -924,8 +968,8 @@ void Synth::Impl::finalizeSfzLoad()
         }
     }
     // connect default controllers, except if these CC are already used
-    for (const LayerPtr& layerPtr : layers_) {
-        Region& region = layerPtr->getRegion();
+    for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
+        Region& region = (*iter)->getRegion();
         constexpr unsigned defaultSmoothness = 10;
         if (!usedCCs.test(7)) {
             region.getOrCreateConnection(
@@ -964,8 +1008,8 @@ void Synth::Impl::finalizeSfzLoad()
     currentUsedCCs_ = collectAllUsedCCs();
 
     // cache the set of keys assigned
-    for (const LayerPtr& layerPtr : layers_) {
-        const Region& region = layerPtr->getRegion();
+    for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
+        const Region& region = (*iter)->getRegion();
         UncheckedRange<uint8_t> keyRange = region.keyRange;
         unsigned loKey = keyRange.getStart();
         unsigned hiKey = keyRange.getEnd();
@@ -973,8 +1017,8 @@ void Synth::Impl::finalizeSfzLoad()
             keySlots_.set(key);
     }
     // cache the set of keyswitches assigned
-    for (const LayerPtr& layerPtr : layers_) {
-        const Region& region = layerPtr->getRegion();
+    for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
+        const Region& region = (*iter)->getRegion();
         if (absl::optional<uint8_t> sw = region.lastKeyswitch) {
             swLastSlots_.set(*sw);
         }
@@ -1817,10 +1861,19 @@ const PolyphonyGroup* Synth::getPolyphonyGroupView(int idx) const noexcept
 Layer* Synth::getLayerById(NumericId<Region> id) noexcept
 {
     Impl& impl = *impl_;
-    const size_t size = impl.layers_.size();
+    
+    auto index = getLayerIndexById(id);
+    return index.has_value() ? impl.layers_[*index].get() : nullptr;
+}
 
+absl::optional<size_t> Synth::getLayerIndexById(NumericId<Region> id) const noexcept
+{
+    Impl& impl = *impl_;
+    const size_t size = impl.layers_.size();
+    absl::optional<size_t> ret;
+    
     if (size == 0 || !id.valid())
-        return nullptr;
+        return ret;
 
     // search a sequence of ordered identifiers with potential gaps
     size_t index = static_cast<size_t>(id.number());
@@ -1829,8 +1882,10 @@ Layer* Synth::getLayerById(NumericId<Region> id) noexcept
     while (index > 0 && impl.layers_[index]->getRegion().getId().number() > id.number())
         --index;
 
-    return (impl.layers_[index]->getRegion().getId() == id) ?
-        impl.layers_[index].get() : nullptr;
+    if (impl.layers_[index]->getRegion().getId() == id)
+        ret = index;
+
+    return ret;
 }
 
 const Region* Synth::getRegionById(NumericId<Region> id) const noexcept
@@ -1838,6 +1893,44 @@ const Region* Synth::getRegionById(NumericId<Region> id) const noexcept
     Layer* layer = const_cast<Synth*>(this)->getLayerById(id);
     return layer ? &layer->getRegion() : nullptr;
 }
+
+bool Synth::removeRegionById(NumericId<Region> id, bool rebuildModMatrix) noexcept
+{
+    Impl& impl = *impl_;
+    auto index = getLayerIndexById(id);
+    if (index.has_value()) {
+        const Region& region = impl.layers_[*index]->getRegion();
+        // clean up any references in mod matrix, etc
+        impl.cleanupRegionReferences(&region);
+        
+        impl.layers_.erase(impl.layers_.begin() + *index);
+        if (rebuildModMatrix) {
+            impl.resources_.getModMatrix().clear();
+            impl.setupModMatrix();
+        }
+        return true;
+    }
+    return false;
+}
+
+bool Synth::removeRegionsById(const std::vector<NumericId<Region>> & regionIds, bool rebuildModMatrix) noexcept
+{
+    Impl& impl = *impl_;
+    bool removedSome = false;
+    
+    for (const auto & rid : regionIds) {
+        auto ret = removeRegionById(rid, false);
+        removedSome = removedSome || ret;
+    }
+    
+    if (rebuildModMatrix) {
+        impl.resources_.getModMatrix().clear();
+        impl.setupModMatrix();
+    }
+
+    return removedSome;
+}
+
 
 const Voice* Synth::getVoiceView(int idx) const noexcept
 {
@@ -2005,12 +2098,12 @@ void Synth::Impl::applySettingsPerVoice()
     }
 }
 
-void Synth::Impl::setupModMatrix()
+void Synth::Impl::setupModMatrix(size_t startRegionIdx)
 {
     ModMatrix& mm = resources_.getModMatrix();
 
-    for (const LayerPtr& layerPtr : layers_) {
-        const Region& region = layerPtr->getRegion();
+    for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
+        const Region& region = (*iter)->getRegion();
 
         for (const Region::Connection& conn : region.connections) {
             ModGenerator* gen = nullptr;
