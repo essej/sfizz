@@ -48,13 +48,16 @@ bool Layer::isSwitchedOn() const noexcept
         && programSwitched_ && bpmSwitched_ && aftertouchSwitched_ && ccSwitched_.all();
 }
 
-bool Layer::registerNoteOn(int noteNumber, float velocity, float randValue) noexcept
+bool Layer::registerNoteOn(int noteNumber, float velocity, float randValue, int basePitch) noexcept
 {
     ASSERT(velocity >= 0.0f && velocity <= 1.0f);
 
+    if (basePitch < 0)
+        basePitch = noteNumber;
+
     const Region& region = region_;
 
-    const bool keyOk = region.keyRange.containsWithEnd(noteNumber);
+    const bool keyOk = region.keyRange.containsWithEnd(basePitch);
     if (keyOk) {
         // Sequence activation
         sequenceSwitched_ =
@@ -82,9 +85,12 @@ bool Layer::registerNoteOn(int noteNumber, float velocity, float randValue) noex
     return keyOk && velOk && randOk && (attackTrigger || firstLegatoNote || notFirstLegatoNote);
 }
 
-bool Layer::registerNoteOff(int noteNumber, float velocity, float randValue) noexcept
+bool Layer::registerNoteOff(int noteNumber, float velocity, float randValue, int basePitch) noexcept
 {
     ASSERT(velocity >= 0.0f && velocity <= 1.0f);
+
+    if (basePitch < 0)
+        basePitch = noteNumber;
 
     const Region& region = region_;
 
@@ -99,7 +105,7 @@ bool Layer::registerNoteOff(int noteNumber, float velocity, float randValue) noe
 
     // Prerequisites
 
-    const bool keyOk = region.keyRange.containsWithEnd(noteNumber);
+    const bool keyOk = region.keyRange.containsWithEnd(basePitch);
     const bool velOk = region.velocityRange.containsWithEnd(velocity);
     const bool randOk = region.randRange.contains(randValue) || (randValue >= 1.0f && region.randRange.isValid() && region.randRange.getEnd() >= 1.0f);
 
@@ -117,12 +123,12 @@ bool Layer::registerNoteOff(int noteNumber, float velocity, float randValue) noe
         if (sostenutoed && !sostenutoPressed_) {
             removeFromSostenutoReleases(noteNumber);
             if (sustainPressed_)
-                delaySustainRelease(noteNumber, midiState_.getNoteVelocity(noteNumber));
+                delaySustainRelease(noteNumber, midiState_.getNoteVelocity(noteNumber), midiState_.getNoteBasePitch(noteNumber));
         }
 
         if (!sostenutoPressed_ || !sostenutoed) {
             if (sustainPressed_)
-                delaySustainRelease(noteNumber, midiState_.getNoteVelocity(noteNumber));
+                delaySustainRelease(noteNumber, midiState_.getNoteVelocity(noteNumber), midiState_.getNoteBasePitch(noteNumber));
             else
                 return true;
         }
@@ -207,26 +213,26 @@ void Layer::registerTempo(float secondsPerQuarter) noexcept
     bpmSwitched_ = region_.bpmRange.containsWithEnd(bpm);
 }
 
-void Layer::delaySustainRelease(int noteNumber, float velocity) noexcept
+void Layer::delaySustainRelease(int noteNumber, float velocity, float basePitch) noexcept
 {
     if (delayedSustainReleases_.size() == delayedSustainReleases_.capacity())
         return;
 
-    delayedSustainReleases_.emplace_back(noteNumber, velocity);
+    delayedSustainReleases_.emplace_back(noteNumber, velocity, basePitch);
 }
 
-void Layer::delaySostenutoRelease(int noteNumber, float velocity) noexcept
+void Layer::delaySostenutoRelease(int noteNumber, float velocity, float basePitch) noexcept
 {
     if (delayedSostenutoReleases_.size() == delayedSostenutoReleases_.capacity())
         return;
 
-    delayedSostenutoReleases_.emplace_back(noteNumber, velocity);
+    delayedSostenutoReleases_.emplace_back(noteNumber, velocity, basePitch);
 }
 
 void Layer::removeFromSostenutoReleases(int noteNumber) noexcept
 {
-    swapAndPopFirst(delayedSostenutoReleases_, [=](const std::pair<int, float>& p) {
-        return p.first == noteNumber;
+    swapAndPopFirst(delayedSostenutoReleases_, [=](const  std::tuple<int, float, float>& p) {
+        return std::get<0>(p) == noteNumber;
     });
 }
 
@@ -236,22 +242,22 @@ void Layer::storeSostenutoNotes() noexcept
     const Region& region = region_;
     for (int note = region.keyRange.getStart(); note <= region.keyRange.getEnd(); ++note) {
         if (midiState_.isNotePressed(note))
-            delaySostenutoRelease(note, midiState_.getNoteVelocity(note));
+            delaySostenutoRelease(note, midiState_.getNoteVelocity(note), midiState_.getNoteBasePitch(note));
     }
 }
 
 
 bool Layer::isNoteSustained(int noteNumber) const noexcept
 {
-    return absl::c_find_if(delayedSustainReleases_, [=](const std::pair<int, float>& p) {
-        return p.first == noteNumber;
+    return absl::c_find_if(delayedSustainReleases_, [=](const std::tuple<int, float, float>& p) {
+        return std::get<0>(p) == noteNumber;
     }) != delayedSustainReleases_.end();
 }
 
 bool Layer::isNoteSostenutoed(int noteNumber) const noexcept
 {
-    return absl::c_find_if(delayedSostenutoReleases_, [=](const std::pair<int, float>& p) {
-        return p.first == noteNumber;
+    return absl::c_find_if(delayedSostenutoReleases_, [=](const std::tuple<int, float, float>& p) {
+        return std::get<0>(p) == noteNumber;
     }) != delayedSostenutoReleases_.end();
 }
 

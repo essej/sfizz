@@ -612,6 +612,64 @@ SFIZZ_EXPORTED_API void sfizz_send_poly_aftertouch(sfizz_synth_t* synth, int del
 SFIZZ_EXPORTED_API void sfizz_send_hd_poly_aftertouch(sfizz_synth_t* synth, int delay, int note_number, float aftertouch);
 
 /**
+ * @brief Send a high-precision note on event to the synth with specified pitch override
+ *
+ * @param synth         The synth.
+ * @param delay the delay at which the event occurs; this should be lower
+ *              than the size of the block in the next call to renderBlock().
+ * @param note_number the midi note number
+ * @param base_pitch the actual floating point basePitch note to use,
+ *                  the midi note number is ignored and just used a reference index.
+ *                  The basePitch can also be changed with hdNoteBasePitch()
+ * @param velocity the normalized midi note velocity, in domain 0 to 1
+ */
+SFIZZ_EXPORTED_API void sfizz_send_hd_note_on_with_pitch(sfizz_synth_t* synth, int delay, int note_number, float base_pitch, float velocity);
+
+/**
+ * @brief Send a high-precision note pitch override value for the note number
+ *
+ * @param synth         The synth.
+ * @param delay the delay at which the event occurs; this should be lower
+ *              than the size of the block in the next call to renderBlock().
+ * @param note_number the midi note number
+ * @param base_pitch the actual floating point basePitch note to use,
+ *                  the midi note number is ignored and just used a reference index.
+ *                  The basePitch can also be changed with hdNoteBasePitch()
+ */
+SFIZZ_EXPORTED_API void sfizz_send_hd_note_base_pitch(sfizz_synth_t* synth, int delay, int note_number, float base_pitch);
+
+/**
+  * @brief Send a high-precision per-note pitch bend event to the synth
+  *
+  * @param synth         The synth.
+  * @param note_number the note number/index to apply this pitchwheel event to only
+  * @param delay the delay at which the event occurs; this should be lower
+  *              than the size of the block in the next call to
+  *              renderBlock().
+  * @param pitch the normalized pitch value centered between -1 and 1
+  */
+SFIZZ_EXPORTED_API void sfizz_send_hd_per_note_pitch_wheel(sfizz_synth_t* synth, int delay, int note_number, float pitch);
+
+/**
+ * @brief Send a high precision CC event to the synth
+ *
+ * @param delay the delay at which the event occurs; this should be lower than the size of
+ *              the block in the next call to renderBlock().
+ * @param note_number the note number/index to apply this CC event to only
+ * @param cc_number the cc number
+ * @param norm_value the normalized cc value, in domain 0 to 1
+ */
+SFIZZ_EXPORTED_API void sfizz_send_hd_per_note_hdcc(sfizz_synth_t* synth, int delay, int note_number, int cc_number, float norm_value);
+
+/**
+ * @brief Manage reset or detaching of per-note controller state
+ *
+ * @param noteNumber the note number/index to apply this CC event to only
+ * @param manageFlags bitmask flags where 0x1 = Detach, and 0x2 = Reset
+ */
+SFIZZ_EXPORTED_API void sfizz_manage_per_note_state(sfizz_synth_t* synth, int note_number, int manage_flags);
+
+/**
  * @brief Send a tempo event.
  *
  * This command should be delay-ordered with all other time/signature commands, namely

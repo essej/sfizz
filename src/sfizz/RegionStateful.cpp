@@ -22,51 +22,51 @@ float baseVolumedB(const Region& region, const MidiState& midiState, int noteNum
 }
 
 
-uint64_t sampleOffset(const Region& region, const MidiState& midiState) noexcept
+uint64_t sampleOffset(const Region& region, const MidiState& midiState, int triggerNumber) noexcept
 {
     std::uniform_int_distribution<int64_t> offsetDistribution { 0, region.offsetRandom };
     int64_t finalOffset = region.offset + offsetDistribution(Random::randomGenerator);
     for (const auto& mod: region.offsetCC)
-        finalOffset += static_cast<int64_t>(mod.data * midiState.getCCValue(mod.cc));
+        finalOffset += static_cast<int64_t>(mod.data * (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc)));
     return Default::offset.bounds.clamp(finalOffset);
 }
 
-float regionDelay(const Region& region, const MidiState& midiState) noexcept
+float regionDelay(const Region& region, const MidiState& midiState, int triggerNumber) noexcept
 {
     fast_real_distribution<float> delayDistribution { 0, region.delayRandom };
     float finalDelay { region.delay };
     finalDelay += delayDistribution(Random::randomGenerator);
     for (const auto& mod: region.delayCC)
-        finalDelay += mod.data * midiState.getCCValue(mod.cc);
+        finalDelay += mod.data * (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc));
 
     return Default::delay.bounds.clamp(finalDelay);
 }
 
-uint32_t sampleEnd(const Region& region, MidiState& midiState) noexcept
+uint32_t sampleEnd(const Region& region, MidiState& midiState, int triggerNumber) noexcept
 {
     int64_t end = region.sampleEnd;
     for (const auto& mod: region.endCC)
-        end += static_cast<int64_t>(mod.data * midiState.getCCValue(mod.cc));
+        end += static_cast<int64_t>(mod.data * (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc)));
 
     end = clamp(end, int64_t { 0 }, region.sampleEnd);
     return static_cast<uint32_t>(end);
 }
 
-uint32_t loopStart(const Region& region, MidiState& midiState) noexcept
+uint32_t loopStart(const Region& region, MidiState& midiState, int triggerNumber) noexcept
 {
     auto start = region.loopRange.getStart();
     for (const auto& mod: region.loopStartCC)
-        start += static_cast<int64_t>(mod.data * midiState.getCCValue(mod.cc));
+        start += static_cast<int64_t>(mod.data * (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc)));
 
     start = clamp(start, int64_t { 0 }, region.sampleEnd);
     return static_cast<uint32_t>(start);
 }
 
-uint32_t loopEnd(const Region& region, MidiState& midiState) noexcept
+uint32_t loopEnd(const Region& region, MidiState& midiState, int triggerNumber) noexcept
 {
     auto end = region.loopRange.getEnd();
     for (const auto& mod: region.loopEndCC)
-        end += static_cast<int64_t>(mod.data * midiState.getCCValue(mod.cc));
+        end += static_cast<int64_t>(mod.data * (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc)));
 
     end = clamp(end, int64_t { 0 }, region.sampleEnd);
     return static_cast<uint32_t>(end);
@@ -86,7 +86,7 @@ float noteGain(const Region& region, int noteNumber, float velocity, const MidiS
     baseGain *= crossfadeOut(region.crossfadeKeyOutRange, noteNumber, region.crossfadeKeyCurve);
 
     // Amplitude velocity tracking
-    baseGain *= velocityCurve(region, velocity, midiState, curveSet);
+    baseGain *= velocityCurve(region, velocity, midiState, curveSet, noteNumber);
 
     // Crossfades related to velocity
     baseGain *= crossfadeIn(region.crossfadeVelInRange, velocity, region.crossfadeVelCurve);
@@ -95,19 +95,21 @@ float noteGain(const Region& region, int noteNumber, float velocity, const MidiS
     return baseGain;
 }
 
-float crossfadeGain(const Region& region, const MidiState& midiState) noexcept
+float crossfadeGain(const Region& region, const MidiState& midiState, int triggerNumber) noexcept
 {
     float gain { 1.0f };
 
     // Crossfades due to CC states
     for (const auto& ccData : region.crossfadeCCInRange) {
-        const auto ccValue = midiState.getCCValue(ccData.cc);
+        // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+        const auto ccValue = (midiState.getCCValue(ccData.cc) + midiState.getPerNoteCCValue(triggerNumber, ccData.cc));
         const auto crossfadeRange = ccData.data;
         gain *= crossfadeIn(crossfadeRange, ccValue, region.crossfadeCCCurve);
     }
 
     for (const auto& ccData : region.crossfadeCCOutRange) {
-        const auto ccValue = midiState.getCCValue(ccData.cc);
+        // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+        const auto ccValue = (midiState.getCCValue(ccData.cc) + midiState.getPerNoteCCValue(triggerNumber, ccData.cc));
         const auto crossfadeRange = ccData.data;
         gain *= crossfadeOut(crossfadeRange, ccValue, region.crossfadeCCCurve);
     }
@@ -115,7 +117,7 @@ float crossfadeGain(const Region& region, const MidiState& midiState) noexcept
     return gain;
 }
 
-float velocityCurve(const Region& region, float velocity, const MidiState& midiState, const CurveSet& curveSet) noexcept
+float velocityCurve(const Region& region, float velocity, const MidiState& midiState, const CurveSet& curveSet, int triggerNumber) noexcept
 {
     ASSERT(velocity >= 0.0f && velocity <= 1.0f);
 
@@ -129,7 +131,8 @@ float velocityCurve(const Region& region, float velocity, const MidiState& midiS
 
     for (const auto& mod : region.ampVeltrackCC) {
         const auto& curve = curveSet.getCurve(mod.data.curve);
-        const float value = midiState.getCCValue(mod.cc);
+        // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+        const float value = (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc));
         veltrack += curve.evalNormalized(value) * mod.data.modifier;
     }
 
@@ -139,7 +142,7 @@ float velocityCurve(const Region& region, float velocity, const MidiState& midiS
     return gain;
 }
 
-float basePitchVariation(const Region& region, float noteNumber, float velocity, const MidiState& midiState, const CurveSet& curveSet) noexcept
+float basePitchVariation(const Region& region, float noteNumber, float velocity, const MidiState& midiState, const CurveSet& curveSet, int triggerNumber) noexcept
 {
     ASSERT(velocity >= 0.0f && velocity <= 1.0f);
 
@@ -152,7 +155,8 @@ float basePitchVariation(const Region& region, float noteNumber, float velocity,
 
     for (const auto& mod : region.pitchVeltrackCC) {
         const auto& curve = curveSet.getCurve(mod.data.curve);
-        const float value = midiState.getCCValue(mod.cc);
+        // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+        const float value = (midiState.getCCValue(mod.cc) + midiState.getPerNoteCCValue(triggerNumber, mod.cc));
         veltrack += curve.evalNormalized(value) * mod.data.modifier;
     }
 

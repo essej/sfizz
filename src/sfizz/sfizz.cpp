@@ -240,6 +240,31 @@ void sfz::Sfizz::hdPolyAftertouch(int delay, int noteNumber, float aftertouch) n
     synth->synth.hdPolyAftertouch(delay, noteNumber, aftertouch);
 }
 
+void sfz::Sfizz::hdNoteOnWithPitch(int delay, int noteNumber, float basePitch, float velocity) noexcept
+{
+    synth->synth.hdNoteOnWithPitch(delay, noteNumber, basePitch, velocity);
+}
+
+void sfz::Sfizz::hdNoteBasePitch(int delay, int noteNumber, float basePitch) noexcept
+{
+    synth->synth.hdNoteBasePitch(delay, noteNumber, basePitch);
+}
+
+void sfz::Sfizz::hdPerNotePitchWheel(int delay, int noteNumber, float pitch) noexcept
+{
+    synth->synth.hdPerNotePitchWheel(delay, noteNumber, pitch);
+}
+
+void sfz::Sfizz::perNoteHdcc(int delay, int noteNumber, int ccNumber, float normValue) noexcept
+{
+    synth->synth.perNoteHdcc(delay, noteNumber, ccNumber, normValue);
+}
+
+void sfz::Sfizz::managePerNoteState(int noteNumber, int manageFlags) noexcept
+{
+    synth->synth.managePerNoteState(noteNumber, manageFlags);
+}
+
 void sfz::Sfizz::tempo(int delay, float secondsPerBeat) noexcept
 {
     synth->synth.tempo(delay, secondsPerBeat);

@@ -20,7 +20,7 @@ public:
     void setSampleRate(double sampleRate) override;
     void setSamplesPerBlock(unsigned count) override;
     void init(const ModKey& sourceKey, NumericId<Voice> voiceId, unsigned delay) override;
-    void generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer) override;
+    bool generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer) override;
 
     /**
      * @brief Reset the smoothers.

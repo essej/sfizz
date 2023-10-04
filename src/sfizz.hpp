@@ -666,6 +666,63 @@ public:
      */
     void hdPolyAftertouch(int delay, int noteNumber, float aftertouch) noexcept;
 
+
+    /**
+     * @brief Send a high-precision note on event to the synth
+     *
+     * @param delay the delay at which the event occurs; this should be lower
+     *              than the size of the block in the next call to renderBlock().
+     * @param noteNumber the midi note number
+     * @param basePitch the actual floating point basePitch note to use,
+     *                  the midi note number is ignored and just used a reference index.
+     *                  The basePitch can also be changed with hdNoteBasePitch()
+     * @param velocity the normalized midi note velocity, in domain 0 to 1
+     */
+    void hdNoteOnWithPitch(int delay, int noteNumber, float basePitch, float velocity) noexcept;
+
+    /**
+     * @brief Send a high-precision note on event to the synth
+     *
+     * @param delay the delay at which the event occurs; this should be lower
+     *              than the size of the block in the next call to renderBlock().
+     * @param noteNumber the midi note number
+     * @param basePitch the actual floating point basePitch note to use,
+     *                  the midi note number is ignored and just used a reference index.
+     *                  The basePitch can also be changed with hdNoteBasePitch()
+     * @param velocity the normalized midi note velocity, in domain 0 to 1
+     */
+    void hdNoteBasePitch(int delay, int noteNumber, float basePitch) noexcept;
+
+    /**
+      * @brief Send a high-precision per-note pitch bend event to the synth
+      *
+      * @param noteNumber the note number/index to apply this pitchwheel event to only
+      * @param delay the delay at which the event occurs; this should be lower
+      *              than the size of the block in the next call to
+      *              renderBlock().
+      * @param pitch the normalized pitch value centered between -1 and 1
+      */
+     void hdPerNotePitchWheel(int delay, int noteNumber, float pitch) noexcept;
+
+    /**
+     * @brief Send a high precision CC event to the synth
+     *
+     * @param delay the delay at which the event occurs; this should be lower than the size of
+     *              the block in the next call to renderBlock().
+     * @param noteNumber the note number/index to apply this CC event to only
+     * @param ccNumber the cc number
+     * @param normValue the normalized cc value, in domain 0 to 1
+     */
+    void perNoteHdcc(int delay, int noteNumber, int ccNumber, float normValue) noexcept;
+
+    /**
+     * @brief Manage reset or detaching of per-note controller state
+     *
+     * @param noteNumber the note number/index to apply this CC event to only
+     * @param manageFlags bitmask flags where 0x1 = Detach, and 0x2 = Reset
+     */
+    void managePerNoteState(int noteNumber, int manageFlags) noexcept;
+
     /**
      * @brief Send a tempo event to the synth.
      *

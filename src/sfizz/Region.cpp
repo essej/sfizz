@@ -1686,60 +1686,68 @@ bool sfz::Region::processGenericCc(const Opcode& opcode, OpcodeSpec<float> spec,
     if (ccNumber >= config::numCCs)
         return false;
 
+
     if (target) {
-        // search an existing connection of same CC number and target
-        // if it exists, modify, otherwise create
-        auto it = std::find_if(connections.begin(), connections.end(),
-            [ccNumber, &target, this](const Connection& x) -> bool
-            {
+
+        auto createConn = [ccNumber, &target, &opcode, spec, this](bool perNote) {
+
+            // search an existing connection of same CC number and target
+            // if it exists, modify, otherwise create
+            auto it = std::find_if(connections.begin(), connections.end(),
+                                   [ccNumber, perNote, &target, this](const Connection& x) -> bool
+                                   {
                 if (ccModulationIsPerVoice(ccNumber))
                     return x.source.id() == ModId::PerVoiceController &&
-                        x.source.region() == id &&
-                        x.source.parameters().cc == ccNumber &&
-                        x.target == target;
-                return x.source.id() == ModId::Controller &&
+                    x.source.region() == id &&
                     x.source.parameters().cc == ccNumber &&
                     x.target == target;
+                return x.source.id() == ModId::Controller &&
+                x.source.parameters().cc == ccNumber &&
+                x.target == target && x.source.parameters().pernote == perNote;
             });
 
-        Connection *conn;
-        if (it != connections.end())
-            conn = &*it;
-        else {
-            connections.emplace_back();
-            conn = &connections.back();
-            conn->source = ModKey::createCC(ccNumber, 0, 0, 0);
-            conn->target = target;
-        }
-
-        //
-        ModKey::Parameters p = conn->source.parameters();
-        switch (opcode.category) {
-        case kOpcodeOnCcN:
-            conn->sourceDepth = opcode.read(spec);
-            break;
-        case kOpcodeCurveCcN:
-                p.curve = opcode.read(Default::curveCC);
-            break;
-        case kOpcodeStepCcN:
-            {
-                const OpcodeSpec<float> stepCC { 0.0f, {}, kPermissiveBounds };
-                p.step = spec.normalizeInput(opcode.read(stepCC));
+            Connection *conn;
+            if (it != connections.end())
+                conn = &*it;
+            else {
+                connections.emplace_back();
+                conn = &connections.back();
+                conn->source = ModKey::createCC(ccNumber, 0, 0, 0, perNote);
+                conn->target = target;
             }
-            break;
-        case kOpcodeSmoothCcN:
-            p.smooth = opcode.read(Default::smoothCC);
-            break;
-        default:
-            assert(false);
-            break;
-        }
 
-       if (ccModulationIsPerVoice(p.cc)) {
-            conn->source = ModKey(ModId::PerVoiceController, id, p);
-       } else {
-            conn->source = ModKey(ModId::Controller, {}, p);
-       }
+            //
+            ModKey::Parameters p = conn->source.parameters();
+            switch (opcode.category) {
+                case kOpcodeOnCcN:
+                    conn->sourceDepth = opcode.read(spec);
+                    break;
+                case kOpcodeCurveCcN:
+                    p.curve = opcode.read(Default::curveCC);
+                    break;
+                case kOpcodeStepCcN:
+                {
+                    const OpcodeSpec<float> stepCC { 0.0f, {}, kPermissiveBounds };
+                    p.step = spec.normalizeInput(opcode.read(stepCC));
+                }
+                    break;
+                case kOpcodeSmoothCcN:
+                    p.smooth = opcode.read(Default::smoothCC);
+                    break;
+                default:
+                    assert(false);
+                    break;
+            }
+
+            if (ccModulationIsPerVoice(p.cc)) {
+                conn->source = ModKey(ModId::PerVoiceController, id, p);
+            } else {
+                conn->source = ModKey(ModId::Controller, {}, p);
+            }
+        };
+
+        createConn(false);
+        createConn(true); // and perNote version
     }
 
     return true;
@@ -1842,13 +1850,13 @@ sfz::Region::Connection& sfz::Region::getOrCreateConnection(const ModKey& source
     return connections.back();
 }
 
-sfz::Region::Connection* sfz::Region::getConnectionFromCC(int sourceCC, const ModKey& target)
+sfz::Region::Connection* sfz::Region::getConnectionFromCC(int sourceCC, const ModKey& target, bool perNote)
 {
     if (ccModulationIsPerVoice(sourceCC)) {
         for (sfz::Region::Connection& conn : connections) {
             if (conn.source.id() == sfz::ModId::PerVoiceController && conn.target == target && conn.source.region() == id) {
                 const auto& p = conn.source.parameters();
-                if (p.cc == sourceCC)
+                if (p.cc == sourceCC && p.pernote == perNote)
                     return &conn;
             }
         }
@@ -1856,7 +1864,7 @@ sfz::Region::Connection* sfz::Region::getConnectionFromCC(int sourceCC, const Mo
         for (sfz::Region::Connection& conn : connections) {
             if (conn.source.id() == sfz::ModId::Controller && conn.target == target) {
                 const auto& p = conn.source.parameters();
-                if (p.cc == sourceCC)
+                if (p.cc == sourceCC && p.pernote == perNote)
                     return &conn;
             }
         }
@@ -1869,19 +1877,19 @@ bool sfz::Region::disabled() const noexcept
     return (sampleEnd == 0);
 }
 
-absl::optional<float> sfz::Region::ccModDepth(int cc, ModId id, uint8_t N, uint8_t X, uint8_t Y, uint8_t Z) const noexcept
+absl::optional<float> sfz::Region::ccModDepth(int cc, ModId id, uint8_t N, uint8_t X, uint8_t Y, uint8_t Z, bool perNote) const noexcept
 {
     const ModKey target = ModKey::createNXYZ(id, getId(), N, X, Y, Z);
-    const Connection *conn = const_cast<Region*>(this)->getConnectionFromCC(cc, target);
+    const Connection *conn = const_cast<Region*>(this)->getConnectionFromCC(cc, target, perNote);
     if (!conn)
         return {};
     return conn->sourceDepth;
 }
 
-absl::optional<sfz::ModKey::Parameters> sfz::Region::ccModParameters(int cc, ModId id, uint8_t N, uint8_t X, uint8_t Y, uint8_t Z) const noexcept
+absl::optional<sfz::ModKey::Parameters> sfz::Region::ccModParameters(int cc, ModId id, uint8_t N, uint8_t X, uint8_t Y, uint8_t Z, bool perNote) const noexcept
 {
     const ModKey target = ModKey::createNXYZ(id, getId(), N, X, Y, Z);
-    const Connection *conn = const_cast<Region*>(this)->getConnectionFromCC(cc, target);
+    const Connection *conn = const_cast<Region*>(this)->getConnectionFromCC(cc, target, perNote);
     if (!conn)
         return {};
     return conn->source.parameters();

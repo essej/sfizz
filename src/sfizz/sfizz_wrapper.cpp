@@ -174,6 +174,26 @@ void sfizz_send_hd_poly_aftertouch(sfizz_synth_t* synth, int delay, int note_num
 {
     synth->synth.hdPolyAftertouch(delay, note_number, aftertouch);
 }
+void sfizz_send_hd_note_on_with_pitch(sfizz_synth_t* synth, int delay, int note_number, float base_pitch, float velocity)
+{
+    synth->synth.hdNoteOnWithPitch(delay, note_number, base_pitch, velocity);
+}
+void sfizz_send_hd_note_base_pitch(sfizz_synth_t* synth, int delay, int note_number, float base_pitch)
+{
+    synth->synth.hdNoteBasePitch(delay, note_number, base_pitch);
+}
+void sfizz_send_hd_per_note_pitch_wheel(sfizz_synth_t* synth, int delay, int note_number, float pitch)
+{
+    synth->synth.hdPerNotePitchWheel(delay, note_number, pitch);
+}
+void sfizz_send_hd_per_note_hdcc(sfizz_synth_t* synth, int delay, int note_number, int cc_number, float norm_value)
+{
+    synth->synth.perNoteHdcc(delay, note_number, cc_number, norm_value);
+}
+void sfizz_manage_per_note_state(sfizz_synth_t* synth, int note_number, int manage_flags)
+{
+    synth->synth.managePerNoteState(note_number, manage_flags);
+}
 void sfizz_send_tempo(sfizz_synth_t* synth, int delay, float seconds_per_quarter)
 {
     synth->synth.tempo(delay, seconds_per_quarter);

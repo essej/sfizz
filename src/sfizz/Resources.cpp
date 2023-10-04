@@ -26,6 +26,7 @@ struct Resources::Impl {
     FilePool filePool;
     WavetablePool wavePool;
     Tuning tuning;
+    Tuning equalTuning;
     absl::optional<StretchTuning> stretch;
     ModMatrix modMatrix;
     BeatClock beatClock;
@@ -111,6 +112,11 @@ const WavetablePool& Resources::getWavePool() const noexcept
 const Tuning& Resources::getTuning() const noexcept
 {
     return impl_->tuning;
+}
+
+const Tuning& Resources::getEqualTuning() const noexcept
+{
+    return impl_->equalTuning;
 }
 
 const absl::optional<StretchTuning>& Resources::getStretch() const noexcept

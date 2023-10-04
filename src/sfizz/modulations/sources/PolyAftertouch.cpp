@@ -23,19 +23,19 @@ void PolyAftertouchSource::init(const ModKey& sourceKey, NumericId<Voice> voiceI
     UNUSED(delay);
 }
 
-void PolyAftertouchSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool PolyAftertouchSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     UNUSED(sourceKey);
     Voice* voice = manager_.getVoiceById(voiceId);
     if (!voice || voice->getTriggerEvent().type == TriggerEventType::CC) {
-        fill(buffer, 0.0f);
-        return;
+        return false;
     }
 
     const int noteNumber = voice->getTriggerEvent().number;
 
     const EventVector& events = midiState_.getPolyAftertouchEvents(noteNumber);
     linearEnvelope(events, buffer, [](float x) { return x; });
+    return true;
 }
 
 } // namespace sfz

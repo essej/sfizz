@@ -90,22 +90,31 @@ TEST_CASE("[MidiState] Flushing state")
     state.ccEvent(100, 123, 124_norm);
     state.channelAftertouchEvent(20, 56_norm);
     state.polyAftertouchEvent(80, 64, 43_norm);
+    state.perNotePitchBendEvent(30, 1, 0.3f);
+    state.perNoteCCEvent(22, 1, 99, 122_norm);
 
     REQUIRE(state.getCCEvents(123).size() > 1);
     REQUIRE(state.getChannelAftertouchEvents().size() > 1);
     REQUIRE(state.getPolyAftertouchEvents(64).size() > 1);
-    REQUIRE(state.getPitchEvents().size() > 1);
+    REQUIRE(state.getPitchBendEvents().size() > 1);
+    REQUIRE(state.getPerNotePitchBendEvents(1).size() > 1);
+    REQUIRE(state.getPerNoteCCEvents(1, 99).size() > 1);
 
     state.flushEvents();
+
     REQUIRE(state.getCCEvents(123).size() == 1);
     REQUIRE(state.getChannelAftertouchEvents().size() == 1);
     REQUIRE(state.getPolyAftertouchEvents(64).size() == 1);
-    REQUIRE(state.getPitchEvents().size() == 1);
+    REQUIRE(state.getPitchBendEvents().size() == 1);
+    REQUIRE(state.getPerNotePitchBendEvents(1).size() == 1);
+    REQUIRE(state.getPerNoteCCEvents(1, 99).size() == 1);
 
     REQUIRE(state.getCCValue(123) == 124_norm);
     REQUIRE(state.getChannelAftertouch() == 56_norm);
     REQUIRE(state.getPolyAftertouch(64) == 43_norm);
     REQUIRE(state.getPitchBend() == 0.7f);
+    REQUIRE(state.getPerNotePitchBend(1) == 0.3f);
+    REQUIRE(state.getPerNoteCCValue(1, 99) == 122_norm);
 }
 
 TEST_CASE("[MidiState] Set and get note velocities")
@@ -131,6 +140,19 @@ TEST_CASE("[MidiState] Last note velocity")
     REQUIRE(state.getVelocityOverride() == 64_norm);
 }
 
+TEST_CASE("[MidiState] Set and get per-note state")
+{
+    sfz::MidiState state;
+    state.perNotePitchBendEvent(0, 60, 0.5f);
+    state.perNoteCCEvent(0, 60, 1, 0.25f);
+    state.noteBasePitchEvent(0, 60, 60.5f);
+    state.noteOnWithPitchEvent(0, 36, 68_norm, 36.5f);
+
+    REQUIRE(state.getPerNotePitchBend(60) == 0.5f);
+    REQUIRE(state.getPerNoteCCValue(60, 1) == 0.25f);
+    REQUIRE(state.getNoteBasePitch(60) == 60.5f);
+    REQUIRE(state.getNoteBasePitch(36) == 36.5f);
+}
 
 TEST_CASE("[CC] Extended CCs on offset and delay")
 {

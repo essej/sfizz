@@ -15,6 +15,7 @@
 #include <vector>
 #include <bitset>
 #include <memory>
+#include <tuple>
 
 namespace sfz {
 struct Region;
@@ -63,10 +64,12 @@ public:
      * @param velocity
      * @param randValue a random value between 0 and 1 used to randomize a bit the region activations
      *                  and vary the samples
+     * @param basePitch the actual pitch value to search for a region with, in case noteNumber is being used as an identifier
+     *                If -1 is specified it defaults to noteNumber
      * @return true if the region should trigger on this event.
      * @return false
      */
-    bool registerNoteOn(int noteNumber, float velocity, float randValue) noexcept;
+    bool registerNoteOn(int noteNumber, float velocity, float randValue, int basePitch=-1) noexcept;
     /**
      * @brief Register a new note off event. The region may be switched on or off using keys so
      * this function updates the keyswitches state.
@@ -75,10 +78,12 @@ public:
      * @param velocity
      * @param randValue a random value between 0 and 1 used to randomize a bit the region activations
      *                  and vary the samples
+     * @param basePitch the actual pitch value to search for a region with, in case noteNumber is being used as an identifier
+     *        If -1 is specified it defaults to noteNumber
      * @return true if the region should trigger on this event.
      * @return false
      */
-    bool registerNoteOff(int noteNumber, float velocity, float randValue) noexcept;
+    bool registerNoteOff(int noteNumber, float velocity, float randValue, int basePitch=-1) noexcept;
     /**
      * @brief Update the internal state of the layer with respect to CC events (sustain, CC
      *  switch, etc).
@@ -128,10 +133,10 @@ public:
     // Started notes
     bool sustainPressed_ { false };
     bool sostenutoPressed_ { false };
-    std::vector<std::pair<int, float>> delayedSustainReleases_;
-    std::vector<std::pair<int, float>> delayedSostenutoReleases_;
-    void delaySustainRelease(int noteNumber, float velocity) noexcept;
-    void delaySostenutoRelease(int noteNumber, float velocity) noexcept;
+    std::vector<std::tuple<int, float, float>> delayedSustainReleases_;
+    std::vector<std::tuple<int, float, float>> delayedSostenutoReleases_;
+    void delaySustainRelease(int noteNumber, float velocity, float basePitch) noexcept;
+    void delaySostenutoRelease(int noteNumber, float velocity, float basePitch) noexcept;
     void storeSostenutoNotes() noexcept;
     void removeFromSostenutoReleases(int noteNumber) noexcept;
     bool isNoteSustained(int noteNumber) const noexcept;

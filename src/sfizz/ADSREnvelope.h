@@ -7,6 +7,7 @@
 #pragma once
 #include "Region.h"
 #include "MidiState.h"
+#include "TriggerEvent.h"
 #include "utility/LeakDetector.h"
 #include <absl/types/span.h>
 namespace sfz {
@@ -30,7 +31,7 @@ public:
      * @param delay
      * @param velocity
      */
-    void reset(const EGDescription& desc, const Region& region, int delay, float velocity, float sampleRate) noexcept;
+    void reset(const EGDescription& desc, const Region& region, int delay, const TriggerEvent& trigEvent, float sampleRate) noexcept;
     /**
      * @brief Get the next block of values for the envelope.
      *
@@ -105,6 +106,7 @@ private:
     const EGDescription* desc_ { nullptr };
     const MidiState& midiState_;
     float triggerVelocity_ { 0.0f };
+    int triggerNumber_ { 0 };
     bool dynamic_ { false };
     int delay { 0 };
     Float attackStep { 0 };

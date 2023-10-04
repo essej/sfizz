@@ -422,52 +422,53 @@ float* ModMatrix::getModulation(TargetId targetId)
 
             // unless source is already done, process it
             if (!source.bufferReady) {
-                source.gen->generate(source.key, impl.currentVoiceId_, sourceBuffer);
-                source.bufferReady = true;
+                source.bufferReady = source.gen->generate(source.key, impl.currentVoiceId_, sourceBuffer);
             }
 
-            float sourceDepth = sourcesPos->second.sourceDepth_;
-            if (sourceFlags & kModIsPerVoice) {
-                const float velToDepth = sourcesPos->second.velToDepth_;
-                sourceDepth += triggerValue * velToDepth;
-            }
+            if (source.bufferReady) {
+                float sourceDepth = sourcesPos->second.sourceDepth_;
+                if (sourceFlags & kModIsPerVoice) {
+                    const float velToDepth = sourcesPos->second.velToDepth_;
+                    sourceDepth += triggerValue * velToDepth;
+                }
 
-            const float* sourceDepthMod = getModulation(sourcesPos->second.sourceDepthModId_);
+                const float* sourceDepthMod = getModulation(sourcesPos->second.sourceDepthModId_);
 
-            if (isFirstSource) {
-                if (sourceDepth == 1 && !sourceDepthMod)
-                    copy(absl::Span<const float>(sourceBuffer), buffer);
-                else if (!sourceDepthMod) {
-                    for (uint32_t i = 0; i < numFrames; ++i)
-                        buffer[i] = sourceDepth * sourceBuffer[i];
-                }
-                else if (targetFlags & kModIsMultiplicative) {
-                    for (uint32_t i = 0; i < numFrames; ++i)
-                        buffer[i] = (sourceDepth * sourceDepthMod[i]) * sourceBuffer[i];
-                }
-                else {
-                    ASSERT(targetFlags & kModIsAdditive);
-                    for (uint32_t i = 0; i < numFrames; ++i)
-                        buffer[i] = (sourceDepth + sourceDepthMod[i]) * sourceBuffer[i];
-                }
-                isFirstSource = false;
-            }
-            else {
-                if (targetFlags & kModIsMultiplicative) {
-                    if (!sourceDepthMod)
-                        multiplyMul1<float>(sourceDepth, sourceBuffer, buffer);
-                    else {
+                if (isFirstSource) {
+                    if (sourceDepth == 1 && !sourceDepthMod)
+                        copy(absl::Span<const float>(sourceBuffer), buffer);
+                    else if (!sourceDepthMod) {
                         for (uint32_t i = 0; i < numFrames; ++i)
-                            buffer[i] *= (sourceDepth * sourceDepthMod[i]) * sourceBuffer[i];
+                            buffer[i] = sourceDepth * sourceBuffer[i];
                     }
+                    else if (targetFlags & kModIsMultiplicative) {
+                        for (uint32_t i = 0; i < numFrames; ++i)
+                            buffer[i] = (sourceDepth * sourceDepthMod[i]) * sourceBuffer[i];
+                    }
+                    else {
+                        ASSERT(targetFlags & kModIsAdditive);
+                        for (uint32_t i = 0; i < numFrames; ++i)
+                            buffer[i] = (sourceDepth + sourceDepthMod[i]) * sourceBuffer[i];
+                    }
+                    isFirstSource = false;
                 }
                 else {
-                    ASSERT(targetFlags & kModIsAdditive);
-                    if (!sourceDepthMod)
-                        multiplyAdd1<float>(sourceDepth, sourceBuffer, buffer);
+                    if (targetFlags & kModIsMultiplicative) {
+                        if (!sourceDepthMod)
+                            multiplyMul1<float>(sourceDepth, sourceBuffer, buffer);
+                        else {
+                            for (uint32_t i = 0; i < numFrames; ++i)
+                                buffer[i] *= (sourceDepth * sourceDepthMod[i]) * sourceBuffer[i];
+                        }
+                    }
                     else {
-                        for (uint32_t i = 0; i < numFrames; ++i)
-                            buffer[i] += (sourceDepth + sourceDepthMod[i]) * sourceBuffer[i];
+                        ASSERT(targetFlags & kModIsAdditive);
+                        if (!sourceDepthMod)
+                            multiplyAdd1<float>(sourceDepth, sourceBuffer, buffer);
+                        else {
+                            for (uint32_t i = 0; i < numFrames; ++i)
+                                buffer[i] += (sourceDepth + sourceDepthMod[i]) * sourceBuffer[i];
+                        }
                     }
                 }
             }

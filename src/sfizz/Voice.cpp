@@ -313,6 +313,8 @@ struct Voice::Impl
     PowerFollower powerFollower_;
 
     ExtendedCCValues extendedCCValues_;
+
+    EventVector tempEvents_;
 };
 
 Voice::Voice(int voiceNumber, Resources& resources)
@@ -383,6 +385,8 @@ Voice::Impl::Impl(int voiceNumber, Resources& resources)
 
     gainSmoother_.setSmoothing(config::gainSmoothing, sampleRate_);
     xfadeSmoother_.setSmoothing(config::xfadeSmoothing, sampleRate_);
+
+    tempEvents_.reserve(128);
 
     // prepare curves
     getSCurve();
@@ -480,18 +484,28 @@ bool Voice::startVoice(Layer* layer, int delay, const TriggerEvent& event) noexc
         }
         impl.updateLoopInformation();
         impl.speedRatio_ = static_cast<float>(impl.currentPromise_->information.sampleRate / impl.sampleRate_);
-        impl.sourcePosition_ = sampleOffset(region, midiState);
+        impl.sourcePosition_ = sampleOffset(region, midiState, impl.triggerEvent_.number);
     }
 
-    // do Scala retuning and reconvert the frequency into a 12TET key number
     Tuning& tuning = resources.getTuning();
-    const float numberRetuned = tuning.getKeyFractional12TET(impl.triggerEvent_.number);
+    Tuning& equalTuning = resources.getEqualTuning();
 
-    impl.pitchRatio_ = basePitchVariation(region, numberRetuned, impl.triggerEvent_.value, midiState, curveSet);
+    float basePitch = midiState.getNoteBasePitch(impl.triggerEvent_.number);
+    int basePitchI = static_cast<int>(std::lround(basePitch));
+    bool pitchOverridden = midiState.isNoteBasePitchOverridden(impl.triggerEvent_.number);
 
-    // apply stretch tuning if set
-    if (absl::optional<StretchTuning>& stretch = resources.getStretch())
-        impl.pitchRatio_ *= stretch->getRatioForFractionalKey(numberRetuned);
+    if (!pitchOverridden) {
+        // do Scala retuning and reconvert the frequency into a 12TET key number
+        basePitch = tuning.getKeyFractional12TET(impl.triggerEvent_.number);
+    }
+
+    impl.pitchRatio_ = basePitchVariation(region, basePitch, impl.triggerEvent_.value, midiState, curveSet, impl.triggerEvent_.number);
+
+    if (!pitchOverridden) {
+        // apply stretch tuning if set
+        if (absl::optional<StretchTuning>& stretch = resources.getStretch())
+            impl.pitchRatio_ *= stretch->getRatioForFractionalKey(basePitch);
+    }
 
     impl.pitchKeycenter_ = region.pitchKeycenter;
     impl.baseVolumedB_ = baseVolumedB(region, midiState, impl.triggerEvent_.number);
@@ -503,7 +517,7 @@ bool Voice::startVoice(Layer* layer, int delay, const TriggerEvent& event) noexc
     impl.resetCrossfades();
 
     for (unsigned i = 0; i < region.filters.size(); ++i) {
-        impl.filters_[i].setup(region, i, impl.triggerEvent_.number, impl.triggerEvent_.value);
+        impl.filters_[i].setup(region, i, basePitchI, impl.triggerEvent_.value);
     }
 
     for (unsigned i = 0; i < region.equalizers.size(); ++i) {
@@ -511,12 +525,13 @@ bool Voice::startVoice(Layer* layer, int delay, const TriggerEvent& event) noexc
     }
 
     impl.triggerDelay_ = delay;
-    impl.initialDelay_ = delay + static_cast<int>(regionDelay(region, midiState) * impl.sampleRate_);
-    impl.baseFrequency_ = tuning.getFrequencyOfKey(impl.triggerEvent_.number);
-    impl.sampleEnd_ = int(sampleEnd(region, midiState));
+    impl.initialDelay_ = delay + static_cast<int>(regionDelay(region, midiState, impl.triggerEvent_.number) * impl.sampleRate_);
+    impl.baseFrequency_ = pitchOverridden ? equalTuning.getFrequencyOfKey(basePitch)
+                                          : tuning.getFrequencyOfKey(impl.triggerEvent_.number); // this is unused, should we bother?
+    impl.sampleEnd_ = int(sampleEnd(region, midiState, impl.triggerEvent_.number));
     impl.sampleSize_ = impl.sampleEnd_- impl.sourcePosition_ - 1;
     impl.bendSmoother_.setSmoothing(region.bendSmooth, impl.sampleRate_);
-    impl.bendSmoother_.reset(region.getBendInCents(midiState.getPitchBend()));
+    impl.bendSmoother_.reset(region.getBendInCents(midiState.getPitchBend() + midiState.getPerNotePitchBend(impl.triggerEvent_.number)));
 
     ModMatrix& modMatrix = resources.getModMatrix();
     modMatrix.initVoice(impl.id_, region.getId(), impl.initialDelay_);
@@ -1742,8 +1757,8 @@ void Voice::Impl::updateLoopInformation() noexcept
     const FileInformation& info = currentPromise_->information;
     const double rate = info.sampleRate;
 
-    loop_.start = static_cast<int>(loopStart(region, midiState));
-    loop_.end = max(static_cast<int>(loopEnd(region, midiState)), loop_.start);
+    loop_.start = static_cast<int>(loopStart(region, midiState, triggerEvent_.number));
+    loop_.end = max(static_cast<int>(loopEnd(region, midiState, triggerEvent_.number)), loop_.start);
     loop_.size = loop_.end + 1 - loop_.start;
     loop_.xfSize = static_cast<int>(lroundPositive(region.loopCrossfade * rate));
     // Clamp the crossfade to the part available before the loop starts
@@ -1975,15 +1990,15 @@ void Voice::Impl::pitchEnvelope(absl::Span<float> pitchSpan) noexcept
     const size_t numFrames = pitchSpan.size();
 
     const MidiState& midiState = resources_.getMidiState();
-    const EventVector& events = midiState.getPitchEvents();
+    MidiState::additiveMergeEvents(midiState.getPitchBendEvents(), midiState.getPerNotePitchBendEvents(triggerEvent_.number), tempEvents_);
     const auto bendLambda = [this](float bend) {
         return region_->getBendInCents(bend);
     };
 
     if (region_->bendStep > 1.0f)
-        linearEnvelope(events, pitchSpan, bendLambda, region_->bendStep);
+        linearEnvelope(tempEvents_, pitchSpan, bendLambda, region_->bendStep);
     else
-        linearEnvelope(events, pitchSpan, bendLambda);
+        linearEnvelope(tempEvents_, pitchSpan, bendLambda);
     bendSmoother_.process(pitchSpan, pitchSpan);
 
     ModMatrix& mm = resources_.getModMatrix();
