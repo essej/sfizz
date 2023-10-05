@@ -53,6 +53,7 @@ public:
     ACCESSOR_RW(getFilePool, FilePool);
     ACCESSOR_RW(getWavePool, WavetablePool);
     ACCESSOR_RW(getTuning, Tuning);
+    ACCESSOR_RW(getEqualTuning, Tuning);
     ACCESSOR_RW(getStretch, absl::optional<StretchTuning>);
     ACCESSOR_RW(getModMatrix, ModMatrix);
     ACCESSOR_RW(getBeatClock, BeatClock);

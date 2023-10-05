@@ -971,19 +971,29 @@ void Synth::Impl::finalizeSfzLoad(size_t startRegionIdx)
     for (auto iter = layers_.cbegin()+startRegionIdx ; iter != layers_.cend(); ++iter) {
         Region& region = (*iter)->getRegion();
         constexpr unsigned defaultSmoothness = 10;
+        constexpr unsigned defaultSmoothnessPerNote = 0; // no smoothing for per-note
         if (!usedCCs.test(7)) {
             region.getOrCreateConnection(
                 ModKey::createCC(7, 4, defaultSmoothness, 0),
+                ModKey::createNXYZ(ModId::Amplitude, region.id)).sourceDepth = 1.0f;
+            region.getOrCreateConnection( // and per-note version
+                ModKey::createCC(7, 4, defaultSmoothnessPerNote, 0, true),
                 ModKey::createNXYZ(ModId::Amplitude, region.id)).sourceDepth = 1.0f;
         }
         if (!usedCCs.test(10)) {
             region.getOrCreateConnection(
                 ModKey::createCC(10, 1, defaultSmoothness, 0),
                 ModKey::createNXYZ(ModId::Pan, region.id)).sourceDepth = 1.0f;
+            region.getOrCreateConnection( // and per-note version
+                ModKey::createCC(10, 1, defaultSmoothnessPerNote, 0, true),
+                ModKey::createNXYZ(ModId::Pan, region.id)).sourceDepth = 1.0f;
         }
         if (!usedCCs.test(11)) {
             region.getOrCreateConnection(
                 ModKey::createCC(11, 4, defaultSmoothness, 0),
+                ModKey::createNXYZ(ModId::Amplitude, region.id)).sourceDepth = 1.0f;
+            region.getOrCreateConnection( // and per-note version
+                ModKey::createCC(11, 4, defaultSmoothnessPerNote, 0, true),
                 ModKey::createNXYZ(ModId::Amplitude, region.id)).sourceDepth = 1.0f;
         }
     }
@@ -1315,7 +1325,7 @@ void Synth::hdNoteOn(int delay, int noteNumber, float normalizedVelocity) noexce
     if (impl.lastKeyswitchLists_[noteNumber].empty())
         impl.resources_.getMidiState().noteOnEvent(delay, noteNumber, normalizedVelocity);
 
-    impl.noteOnDispatch(delay, noteNumber, normalizedVelocity);
+    impl.noteOnDispatch(delay, noteNumber, normalizedVelocity, noteNumber);
 }
 
 void Synth::noteOff(int delay, int noteNumber, int velocity) noexcept
@@ -1340,12 +1350,66 @@ void Synth::hdNoteOff(int delay, int noteNumber, float normalizedVelocity) noexc
         midiState.noteOffEvent(delay, noteNumber, normalizedVelocity);
 
     const auto replacedVelocity = midiState.getNoteVelocity(noteNumber);
+    const auto basePitch = midiState.getNoteBasePitch(noteNumber);
 
     for (auto& voice : impl.voiceManager_)
         voice.registerNoteOff(delay, noteNumber, replacedVelocity);
 
-    impl.noteOffDispatch(delay, noteNumber, replacedVelocity);
+    impl.noteOffDispatch(delay, noteNumber, replacedVelocity, basePitch);
 }
+
+void Synth::hdNoteOnWithPitch(int delay, int noteNumber, float basePitch, float normalizedVelocity) noexcept
+{
+    ASSERT(noteNumber < 128);
+    ASSERT(noteNumber >= 0);
+    Impl& impl = *impl_;
+    ScopedTiming logger { impl.dispatchDuration_, ScopedTiming::Operation::addToDuration };
+
+    if (impl.lastKeyswitchLists_[noteNumber].empty())
+        impl.resources_.getMidiState().noteOnWithPitchEvent(delay, noteNumber, normalizedVelocity, basePitch);
+
+    // use basePitch as basis for region picking
+    impl.noteOnDispatch(delay, noteNumber, normalizedVelocity, static_cast<int>(lrintf(basePitch)));
+}
+
+void Synth::hdNoteBasePitch(int delay, int noteNumber, float basePitch) noexcept
+{
+    Impl& impl = *impl_;
+    ScopedTiming logger { impl.dispatchDuration_, ScopedTiming::Operation::addToDuration };
+    impl.resources_.getMidiState().noteBasePitchEvent(delay, noteNumber, basePitch);
+}
+
+void Synth::hdPerNotePitchWheel(int delay, int noteNumber, float normalizedPitch) noexcept
+{
+    Impl& impl = *impl_;
+
+    ScopedTiming logger { impl.dispatchDuration_, ScopedTiming::Operation::addToDuration };
+    impl.resources_.getMidiState().perNotePitchBendEvent(delay, noteNumber, normalizedPitch);
+
+    //for (const Impl::LayerPtr& layer : impl.layers_) {
+    //    layer->registerPitchWheel(normalizedPitch);
+    //}
+
+    //for (auto& voice : impl.voiceManager_) {
+    //    voice.registerPitchWheel(delay, normalizedPitch);
+    //}
+
+    impl.performPerNoteHdcc(delay, noteNumber, ExtendedCCs::pitchBend, normalizedPitch, false);
+}
+
+void Synth::perNoteHdcc(int delay, int noteNumber, int ccNumber, float normValue) noexcept
+{
+    Impl& impl = *impl_;
+    impl.performPerNoteHdcc(delay, noteNumber, ccNumber, normValue, false);
+}
+
+void Synth::managePerNoteState(int noteNumber, int manageFlags) noexcept
+{
+    Impl& impl = *impl_;
+    ScopedTiming logger { impl.dispatchDuration_, ScopedTiming::Operation::addToDuration };
+    impl.resources_.getMidiState().managePerNoteState(noteNumber, manageFlags);
+}
+
 
 void Synth::Impl::startVoice(Layer* layer, int delay, const TriggerEvent& triggerEvent, SisterVoiceRingBuilder& ring) noexcept
 {
@@ -1366,26 +1430,28 @@ void Synth::Impl::checkOffGroups(const Region* region, int delay, int number)
         if (voice.checkOffGroup(region, delay, number)) {
             const TriggerEvent& event = voice.getTriggerEvent();
             if (event.type == TriggerEventType::NoteOn)
-                noteOffDispatch(delay, event.number, event.value);
+                noteOffDispatch(delay, event.number, event.value, event.value2);
         }
     }
 }
 
-void Synth::Impl::noteOffDispatch(int delay, int noteNumber, float velocity) noexcept
+void Synth::Impl::noteOffDispatch(int delay, int noteNumber, float velocity, float basePitch) noexcept
 {
     const auto randValue = randNoteDistribution_(Random::randomGenerator);
     SisterVoiceRingBuilder ring;
-    const TriggerEvent triggerEvent { TriggerEventType::NoteOff, noteNumber, velocity };
+    const TriggerEvent triggerEvent { TriggerEventType::NoteOff, noteNumber, velocity , basePitch};
 
-    for (Layer* layer : upKeyswitchLists_[noteNumber])
+    int usenote = basePitch >= 0 ? static_cast<int>(std::lround(basePitch)) : noteNumber;
+
+    for (Layer* layer : upKeyswitchLists_[usenote])
         layer->keySwitched_ = true;
 
-    for (Layer* layer : downKeyswitchLists_[noteNumber])
+    for (Layer* layer : downKeyswitchLists_[usenote])
         layer->keySwitched_ = false;
 
-    for (Layer* layer : noteActivationLists_[noteNumber]) {
+    for (Layer* layer : noteActivationLists_[usenote]) {
         const Region& region = layer->getRegion();
-        if (layer->registerNoteOff(noteNumber, velocity, randValue)) {
+        if (layer->registerNoteOff(noteNumber, velocity, randValue, usenote)) {
             if (region.trigger == Trigger::release && !region.rtDead && !voiceManager_.playingAttackVoice(&region))
                 continue;
 
@@ -1395,44 +1461,46 @@ void Synth::Impl::noteOffDispatch(int delay, int noteNumber, float velocity) noe
     }
 }
 
-void Synth::Impl::noteOnDispatch(int delay, int noteNumber, float velocity) noexcept
+void Synth::Impl::noteOnDispatch(int delay, int noteNumber, float velocity, float basePitch) noexcept
 {
     const auto randValue = randNoteDistribution_(Random::randomGenerator);
     SisterVoiceRingBuilder ring;
     MidiState& midiState = resources_.getMidiState();
 
-    if (!lastKeyswitchLists_[noteNumber].empty()) {
-        if (currentSwitch_ && *currentSwitch_ != noteNumber) {
+    int usenote = basePitch >= 0 ? static_cast<int>(std::lround(basePitch)) : noteNumber;
+
+    if (!lastKeyswitchLists_[basePitch].empty()) {
+        if (currentSwitch_ && *currentSwitch_ != usenote) {
             for (Layer* layer : lastKeyswitchLists_[*currentSwitch_])
                 layer->keySwitched_ = false;
         }
-        currentSwitch_ = noteNumber;
+        currentSwitch_ = basePitch;
     }
 
-    for (Layer* layer : lastKeyswitchLists_[noteNumber])
+    for (Layer* layer : lastKeyswitchLists_[usenote])
         layer->keySwitched_ = true;
 
-    for (Layer* layer : upKeyswitchLists_[noteNumber])
+    for (Layer* layer : upKeyswitchLists_[usenote])
         layer->keySwitched_ = false;
 
-    for (Layer* layer : downKeyswitchLists_[noteNumber])
+    for (Layer* layer : downKeyswitchLists_[usenote])
         layer->keySwitched_ = true;
 
-    for (Layer* layer : noteActivationLists_[noteNumber]) {
-        if (layer->registerNoteOn(noteNumber, velocity, randValue)) {
+    for (Layer* layer : noteActivationLists_[usenote]) {
+        if (layer->registerNoteOn(noteNumber, velocity, randValue, usenote)) {
             const Region& region = layer->getRegion();
             if (region.useTimerRange && ! voiceManager_.withinValidTimerRange(&region, midiState.getInternalClock() + delay, sampleRate_))
                 continue;
 
-            checkOffGroups(&region, delay, noteNumber);
-            TriggerEvent triggerEvent { TriggerEventType::NoteOn, noteNumber, velocity };
+            checkOffGroups(&region, delay, usenote);
+            TriggerEvent triggerEvent { TriggerEventType::NoteOn, noteNumber, velocity, basePitch };
             startVoice(layer, delay, triggerEvent, ring);
         }
     }
 
     for (Layer* layer : previousKeyswitchLists_) {
         const Region& region = layer->getRegion();
-        layer->previousKeySwitched_ = (region.previousKeyswitch == noteNumber);
+        layer->previousKeySwitched_ = (region.previousKeyswitch == usenote);
     }
 }
 
@@ -1446,7 +1514,7 @@ void Synth::Impl::startDelayedSustainReleases(Layer* layer, int delay, SisterVoi
     }
 
     for (auto& note: layer->delayedSustainReleases_) {
-        const TriggerEvent noteOffEvent { TriggerEventType::NoteOff, note.first, note.second };
+        const TriggerEvent noteOffEvent { TriggerEventType::NoteOff, std::get<0>(note), std::get<1>(note), std::get<2>(note) };
         startVoice(layer, delay, noteOffEvent, ring);
     }
 
@@ -1463,7 +1531,7 @@ void Synth::Impl::startDelayedSostenutoReleases(Layer* layer, int delay, SisterV
     }
 
     for (auto& note: layer->delayedSostenutoReleases_) {
-        const TriggerEvent noteOffEvent { TriggerEventType::NoteOff, note.first, note.second };
+        const TriggerEvent noteOffEvent { TriggerEventType::NoteOff, std::get<0>(note), std::get<1>(note), std::get<2>(note) };
         startVoice(layer, delay, noteOffEvent, ring);
     }
     layer->delayedSostenutoReleases_.clear();
@@ -1490,7 +1558,7 @@ void Synth::Impl::ccDispatch(int delay, int ccNumber, float value, int extendedA
         if (region.checkSostenuto && ccNumber == region.sostenutoCC && value < region.sostenutoThreshold) {
             if (layer->sustainPressed_) {
                 for (const auto& v: layer->delayedSostenutoReleases_)
-                    layer->delaySustainRelease(v.first, v.second);
+                    layer->delaySustainRelease(std::get<0>(v), std::get<1>(v), std::get<2>(v));
 
                 layer->delayedSostenutoReleases_.clear();
             } else {
@@ -1551,6 +1619,23 @@ void Synth::Impl::performHdcc(int delay, int ccNumber, float normValue, bool asM
     ccDispatch(delay, ccNumber, normValue, extendedArg);
     midiState.ccEvent(delay, ccNumber, normValue);
 }
+
+void Synth::Impl::performPerNoteHdcc(int delay, int noteNumber, int ccNumber, float normValue, bool asMidi) noexcept
+{
+    ASSERT(ccNumber < config::numCCs);
+    ASSERT(ccNumber >= 0);
+
+    (void) asMidi;
+
+    ScopedTiming logger { dispatchDuration_, ScopedTiming::Operation::addToDuration };
+
+    // changedCCsThisCycle_.set(ccNumber);
+
+    MidiState& midiState = resources_.getMidiState();
+
+    midiState.perNoteCCEvent(delay, noteNumber, ccNumber, normValue);
+}
+
 
 void Synth::Impl::setDefaultHdcc(int ccNumber, float value)
 {
@@ -2116,7 +2201,7 @@ void Synth::Impl::setupModMatrix(size_t startRegionIdx)
                 ModKey::Parameters p = sourceKey.parameters();
                 p.step = (conn.sourceDepth <= 0.0f) ? 0.0f :
                     (p.step / conn.sourceDepth);
-                sourceKey = ModKey::createCC(p.cc, p.curve, p.smooth, p.step);
+                sourceKey = ModKey::createCC(p.cc, p.curve, p.smooth, p.step, p.pernote);
             }
 
             switch (sourceKey.id()) {

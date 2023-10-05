@@ -64,8 +64,9 @@ public:
      * @param sourceKey source key
      * @param voiceNum voice number if the generator is per-voice, otherwise undefined
      * @param buffer output buffer
+     * @returns false if the buffer could not be generated and should not be used, true otherwise
      */
-    virtual void generate(const ModKey& sourceKey, NumericId<Voice> voiceNum, absl::Span<float> buffer) = 0;
+    virtual bool generate(const ModKey& sourceKey, NumericId<Voice> voiceNum, absl::Span<float> buffer) = 0;
 
     /**
      * @brief Advance the generator by a number of frames
@@ -76,9 +77,9 @@ public:
      * @param voiceNum voice number if the generator is per-voice, otherwise undefined
      * @param buffer writable spare buffer, contents will be discarded
      */
-    virtual void generateDiscarded(const ModKey& sourceKey, NumericId<Voice> voiceNum, absl::Span<float> buffer)
+    virtual bool generateDiscarded(const ModKey& sourceKey, NumericId<Voice> voiceNum, absl::Span<float> buffer)
     {
-        generate(sourceKey, voiceNum, buffer);
+        return generate(sourceKey, voiceNum, buffer);
     }
 };
 

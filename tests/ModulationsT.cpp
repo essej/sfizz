@@ -92,10 +92,14 @@ width_oncc425=29
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 20 {curve=3, smooth=0, step=0}" -> "Amplitude {0}")",
-        R"("Controller 42 {curve=0, smooth=32, step=0}" -> "Pitch {0}")",
-        R"("Controller 36 {curve=0, smooth=0, step=0.04}" -> "Pan {0}")",
-        R"("Controller 425 {curve=0, smooth=0, step=0}" -> "Width {0}")",
+        R"("Controller 20 {curve=3, smooth=0, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 20 {curve=3, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 42 {curve=0, smooth=32, step=0, pernote=0}" -> "Pitch {0}")",
+        R"("Controller 42 {curve=0, smooth=32, step=0, pernote=1}" -> "Pitch {0}")",
+        R"("Controller 36 {curve=0, smooth=0, step=0.04, pernote=0}" -> "Pan {0}")",
+        R"("Controller 36 {curve=0, smooth=0, step=0.04, pernote=1}" -> "Pan {0}")",
+        R"("Controller 425 {curve=0, smooth=0, step=0, pernote=0}" -> "Width {0}")",
+        R"("Controller 425 {curve=0, smooth=0, step=0, pernote=1}" -> "Width {0}")",
     }));
 }
 
@@ -111,9 +115,12 @@ TEST_CASE("[Modulations] Filter CC connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 1 {curve=0, smooth=10, step=0}" -> "FilterResonance {0, N=3}")",
-        R"("Controller 2 {curve=2, smooth=0, step=0}" -> "FilterCutoff {0, N=2}")",
-        R"("Controller 3 {curve=0, smooth=0, step=0.1}" -> "FilterGain {0, N=1}")",
+        R"("Controller 1 {curve=0, smooth=10, step=0, pernote=0}" -> "FilterResonance {0, N=3}")",
+        R"("Controller 1 {curve=0, smooth=10, step=0, pernote=1}" -> "FilterResonance {0, N=3}")",
+        R"("Controller 2 {curve=2, smooth=0, step=0, pernote=0}" -> "FilterCutoff {0, N=2}")",
+        R"("Controller 2 {curve=2, smooth=0, step=0, pernote=1}" -> "FilterCutoff {0, N=2}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0.1, pernote=0}" -> "FilterGain {0, N=1}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0.1, pernote=1}" -> "FilterGain {0, N=1}")",
     }));
 }
 
@@ -129,9 +136,12 @@ TEST_CASE("[Modulations] EQ CC connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 1 {curve=0, smooth=10, step=0}" -> "EqBandwidth {0, N=3}")",
-        R"("Controller 2 {curve=0, smooth=0, step=0.1}" -> "EqGain {0, N=1}")",
-        R"("Controller 3 {curve=3, smooth=0, step=0}" -> "EqFrequency {0, N=2}")",
+        R"("Controller 1 {curve=0, smooth=10, step=0, pernote=0}" -> "EqBandwidth {0, N=3}")",
+        R"("Controller 1 {curve=0, smooth=10, step=0, pernote=1}" -> "EqBandwidth {0, N=3}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0.1, pernote=0}" -> "EqGain {0, N=1}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0.1, pernote=1}" -> "EqGain {0, N=1}")",
+        R"("Controller 3 {curve=3, smooth=0, step=0, pernote=0}" -> "EqFrequency {0, N=2}")",
+        R"("Controller 3 {curve=3, smooth=0, step=0, pernote=1}" -> "EqFrequency {0, N=2}")",
     }));
 }
 
@@ -247,9 +257,12 @@ TEST_CASE("[Modulations] FlexEG Ampeg target")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createModulationDotGraph({
-        R"("Controller 10 {curve=1, smooth=10, step=0}" -> "Pan {0}")",
-        R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
-        R"("Controller 7 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
+        R"("Controller 10 {curve=1, smooth=10, step=0, pernote=0}" -> "Pan {0}")",
+        R"("Controller 10 {curve=1, smooth=0, step=0, pernote=1}" -> "Pan {0}")",
+        R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
         R"("EG 1 {0}" -> "MasterAmplitude {0}")",
     }));
 }
@@ -272,9 +285,12 @@ TEST_CASE("[Modulations] FlexEG Ampeg target with 2 FlexEGs")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createModulationDotGraph({
-        R"("Controller 10 {curve=1, smooth=10, step=0}" -> "Pan {0}")",
-        R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
-        R"("Controller 7 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
+        R"("Controller 10 {curve=1, smooth=10, step=0, pernote=0}" -> "Pan {0}")",
+        R"("Controller 10 {curve=1, smooth=0, step=0, pernote=1}" -> "Pan {0}")",
+        R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
         R"("EG 2 {0}" -> "MasterAmplitude {0}")",
     }));
 }
@@ -299,9 +315,12 @@ TEST_CASE("[Modulations] FlexEG Ampeg target with multiple EGs targeting ampeg")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createModulationDotGraph({
-        R"("Controller 10 {curve=1, smooth=10, step=0}" -> "Pan {0}")",
-        R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
-        R"("Controller 7 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
+        R"("Controller 10 {curve=1, smooth=10, step=0, pernote=0}" -> "Pan {0}")",
+        R"("Controller 10 {curve=1, smooth=0, step=0, pernote=1}" -> "Pan {0}")",
+        R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
         R"("EG 1 {0}" -> "MasterAmplitude {0}")",
     }));
 }
@@ -317,9 +336,12 @@ TEST_CASE("[Modulations] Override the default volume controller")
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createModulationDotGraph({
         R"("AmplitudeEG {0}" -> "MasterAmplitude {0}")",
-        R"("Controller 10 {curve=1, smooth=10, step=0}" -> "Pan {0}")",
-        R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
-        R"("Controller 7 {curve=0, smooth=0, step=0}" -> "Pitch {0}")",
+        R"("Controller 10 {curve=1, smooth=10, step=0, pernote=0}" -> "Pan {0}")",
+        R"("Controller 10 {curve=1, smooth=0, step=0, pernote=1}" -> "Pan {0}")",
+        R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=0, smooth=0, step=0, pernote=0}" -> "Pitch {0}")",
+        R"("Controller 7 {curve=0, smooth=0, step=0, pernote=1}" -> "Pitch {0}")",
     }));
 }
 
@@ -334,8 +356,10 @@ TEST_CASE("[Modulations] Override the default pan controller")
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createModulationDotGraph({
         R"("AmplitudeEG {0}" -> "MasterAmplitude {0}")",
-        R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
-        R"("Controller 7 {curve=4, smooth=10, step=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {0}")",
+        R"("Controller 7 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {0}")",
     }));
 }
 
@@ -382,9 +406,12 @@ TEST_CASE("[Modulations] LFO v1 CC connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 1 {curve=0, smooth=0, step=0}" -> "AmplitudeLFODepth {0}")",
-        R"("Controller 2 {curve=0, smooth=0, step=0}" -> "PitchLFODepth {1}")",
-        R"("Controller 3 {curve=0, smooth=0, step=0}" -> "FilterLFODepth {2}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=0}" -> "AmplitudeLFODepth {0}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=1}" -> "AmplitudeLFODepth {0}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=0}" -> "PitchLFODepth {1}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=1}" -> "PitchLFODepth {1}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=0}" -> "FilterLFODepth {2}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=1}" -> "FilterLFODepth {2}")",
         R"("AmplitudeLFO {0}" -> "Volume {0}")",
         R"("PitchLFO {1}" -> "Pitch {1}")",
         R"("FilterLFO {2}" -> "FilterCutoff {2, N=1}")",
@@ -402,9 +429,12 @@ TEST_CASE("[Modulations] LFO v1 CC frequency connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 1 {curve=0, smooth=0, step=0}" -> "AmplitudeLFOFrequency {0}")",
-        R"("Controller 2 {curve=0, smooth=0, step=0}" -> "PitchLFOFrequency {1}")",
-        R"("Controller 3 {curve=0, smooth=0, step=0}" -> "FilterLFOFrequency {2}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=0}" -> "AmplitudeLFOFrequency {0}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=1}" -> "AmplitudeLFOFrequency {0}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=0}" -> "PitchLFOFrequency {1}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=1}" -> "PitchLFOFrequency {1}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=0}" -> "FilterLFOFrequency {2}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=1}" -> "FilterLFOFrequency {2}")",
         R"("AmplitudeLFO {0}" -> "Volume {0}")",
         R"("PitchLFO {1}" -> "Pitch {1}")",
         R"("FilterLFO {2}" -> "FilterCutoff {2, N=1}")",
@@ -501,8 +531,10 @@ TEST_CASE("[Modulations] EG v1 CC connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 2 {curve=0, smooth=0, step=0}" -> "PitchEGDepth {0}")",
-        R"("Controller 3 {curve=0, smooth=0, step=0}" -> "FilterEGDepth {1}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=0}" -> "PitchEGDepth {0}")",
+        R"("Controller 2 {curve=0, smooth=0, step=0, pernote=1}" -> "PitchEGDepth {0}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=0}" -> "FilterEGDepth {1}")",
+        R"("Controller 3 {curve=0, smooth=0, step=0, pernote=1}" -> "FilterEGDepth {1}")",
         R"("PitchEG {0}" -> "Pitch {0}")",
         R"("FilterEG {1}" -> "FilterCutoff {1, N=1}")",
     }, 2));
@@ -526,8 +558,10 @@ TEST_CASE("[Modulations] LFO CC connections")
 
     const std::string graph = synth.getResources().getModMatrix().toDotGraph();
     REQUIRE(graph == createDefaultGraph({
-        R"("Controller 128 {curve=0, smooth=0, step=0}" -> "Pitch {0}")",
-        R"("Controller 129 {curve=0, smooth=0, step=0}" -> "Pitch {0}")",
+        R"("Controller 128 {curve=0, smooth=0, step=0, pernote=0}" -> "Pitch {0}")",
+        R"("Controller 128 {curve=0, smooth=0, step=0, pernote=1}" -> "Pitch {0}")",
+        R"("Controller 129 {curve=0, smooth=0, step=0, pernote=0}" -> "Pitch {0}")",
+        R"("Controller 129 {curve=0, smooth=0, step=0, pernote=1}" -> "Pitch {0}")",
         R"("PerVoiceController 131 {curve=0, smooth=0, step=0, region=0}" -> "Pitch {0}")",
         R"("PerVoiceController 132 {curve=0, smooth=0, step=0, region=0}" -> "Pitch {0}")",
         R"("PerVoiceController 133 {curve=0, smooth=0, step=0, region=0}" -> "Pitch {0}")",
@@ -553,8 +587,11 @@ TEST_CASE("[Modulations] Extended CCs connections")
         R"("LFO 1 {0}" -> "Volume {0}")",
         R"("LFO 2 {0}" -> "Pitch {0}")",
         R"("LFO 3 {0}" -> "Amplitude {0}")",
-        R"("Controller 1 {curve=0, smooth=0, step=0}" -> "LFOFrequency {0, N=1}")",
-        R"("Controller 1 {curve=1, smooth=10, step=0.1}" -> "LFOFrequency {0, N=2}")",
-        R"("Controller 1 {curve=1, smooth=10, step=0.1}" -> "LFOPhase {0, N=3}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=0}" -> "LFOFrequency {0, N=1}")",
+        R"("Controller 1 {curve=0, smooth=0, step=0, pernote=1}" -> "LFOFrequency {0, N=1}")",
+        R"("Controller 1 {curve=1, smooth=10, step=0.1, pernote=0}" -> "LFOFrequency {0, N=2}")",
+        R"("Controller 1 {curve=1, smooth=10, step=0.1, pernote=1}" -> "LFOFrequency {0, N=2}")",
+        R"("Controller 1 {curve=1, smooth=10, step=0.1, pernote=0}" -> "LFOPhase {0, N=3}")",
+        R"("Controller 1 {curve=1, smooth=10, step=0.1, pernote=1}" -> "LFOPhase {0, N=3}")",
     }, 1));
 }

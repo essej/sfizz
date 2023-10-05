@@ -79,7 +79,7 @@ void ADSREnvelopeSource::init(const ModKey& sourceKey, NumericId<Voice> voiceId,
 
     const TriggerEvent& triggerEvent = voice->getTriggerEvent();
     const float sampleRate = voice->getSampleRate();
-    eg->reset(*desc, *region, delay, triggerEvent.value, sampleRate);
+    eg->reset(*desc, *region, delay, triggerEvent, sampleRate);
 }
 
 void ADSREnvelopeSource::release(const ModKey& sourceKey, NumericId<Voice> voiceId, unsigned delay)
@@ -110,18 +110,19 @@ void ADSREnvelopeSource::cancelRelease(const ModKey& sourceKey, NumericId<Voice>
     eg->cancelRelease(delay);
 }
 
-void ADSREnvelopeSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool ADSREnvelopeSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     Voice* voice = voiceManager_.getVoiceById(voiceId);
     if (!voice) {
         ASSERTFALSE;
-        return;
+        return false;
     }
 
     ADSREnvelope* eg = getEG(voice, sourceKey);
     ASSERT(eg);
 
-    eg->getBlock(buffer);
+    eg->getBlock(buffer);\
+    return true;
 }
 
 } // namespace sfz

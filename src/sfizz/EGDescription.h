@@ -82,12 +82,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getAttack(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getAttack(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { attack + velocity * vel2attack };
         for (auto& mod: ccAttack) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay))* mod.data;
         }
         return returnedValue;
     }
@@ -98,12 +99,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getDecay(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getDecay(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { decay + velocity * vel2decay };
         for (auto& mod: ccDecay) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }
@@ -114,12 +116,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getDelay(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getDelay(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { this->delay + velocity * vel2delay };
         for (auto& mod: ccDelay) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }
@@ -130,12 +133,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getHold(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getHold(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { hold + velocity * vel2hold };
         for (auto& mod: ccHold) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }
@@ -146,12 +150,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getRelease(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getRelease(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { release + velocity * vel2release };
         for (auto& mod: ccRelease) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }
@@ -162,12 +167,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getStart(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getStart(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         UNUSED(velocity);
         float returnedValue { start };
         for (auto& mod: ccStart) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }
@@ -178,12 +184,13 @@ struct EGDescription {
      * @param velocity
      * @return float
      */
-    float getSustain(const MidiState& state, float velocity, int delay = 0) const noexcept
+    float getSustain(const MidiState& state, float velocity, int trigNum, int delay) const noexcept
     {
         ASSERT(velocity >= 0.0f && velocity <= 1.0f);
         float returnedValue { sustain + velocity * vel2sustain };
         for (auto& mod: ccSustain) {
-            returnedValue += state.getCCValueAt(mod.cc, delay) * mod.data;
+            // XXX: should pernote CC be additive here, or override, or multiplicative if > 0 ?
+            returnedValue += (state.getCCValueAt(mod.cc, delay) + state.getPerNoteCCValueAt(trigNum, mod.cc, delay)) * mod.data;
         }
         return returnedValue;
     }

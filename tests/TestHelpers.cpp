@@ -167,17 +167,32 @@ std::string createDefaultGraph(std::vector<std::string> lines, int numRegions)
             R"("AmplitudeEG {)", regionIdx, R"(}" -> "MasterAmplitude {)", regionIdx, R"(}")"
         ));
         lines.push_back(absl::StrCat(
-            R"("Controller 7 {curve=4, smooth=10, step=0}" -> "Amplitude {)",
+            R"("Controller 7 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {)",
             regionIdx,
             R"(}")"
         ));
         lines.push_back(absl::StrCat(
-            R"("Controller 10 {curve=1, smooth=10, step=0}" -> "Pan {)",
+            R"("Controller 7 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {)",
             regionIdx,
             R"(}")"
         ));
         lines.push_back(absl::StrCat(
-            R"("Controller 11 {curve=4, smooth=10, step=0}" -> "Amplitude {)",
+            R"("Controller 10 {curve=1, smooth=10, step=0, pernote=0}" -> "Pan {)",
+            regionIdx,
+            R"(}")"
+        ));
+        lines.push_back(absl::StrCat(
+            R"("Controller 10 {curve=1, smooth=0, step=0, pernote=1}" -> "Pan {)",
+            regionIdx,
+            R"(}")"
+        ));
+        lines.push_back(absl::StrCat(
+            R"("Controller 11 {curve=4, smooth=10, step=0, pernote=0}" -> "Amplitude {)",
+            regionIdx,
+            R"(}")"
+        ));
+        lines.push_back(absl::StrCat(
+            R"("Controller 11 {curve=4, smooth=0, step=0, pernote=1}" -> "Amplitude {)",
             regionIdx,
             R"(}")"
         ));

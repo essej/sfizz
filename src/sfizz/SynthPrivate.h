@@ -133,8 +133,9 @@ struct Synth::Impl final: public Parser::Listener {
      * @param delay
      * @param noteNumber
      * @param velocity
+     * @param basePitch used in case noteNumber is being used as identifier
      */
-    void noteOnDispatch(int delay, int noteNumber, float velocity) noexcept;
+    void noteOnDispatch(int delay, int noteNumber, float velocity, float basePitch) noexcept;
 
     /**
      * @brief Check all regions and start voices for note off events
@@ -143,7 +144,7 @@ struct Synth::Impl final: public Parser::Listener {
      * @param noteNumber
      * @param velocity
      */
-    void noteOffDispatch(int delay, int noteNumber, float velocity) noexcept;
+    void noteOffDispatch(int delay, int noteNumber, float velocity, float basePitch) noexcept;
 
     /**
      * @brief Check all regions and start voices for cc events
@@ -253,6 +254,7 @@ struct Synth::Impl final: public Parser::Listener {
      * @param extendedArg for some extendedCC (eg. polyaftertouch: note num, etc)
      */
     void performHdcc(int delay, int ccNumber, float normValue, bool asMidi, int extendedArg=-1) noexcept;
+    void performPerNoteHdcc(int delay, int noteNumber, int ccNumber, float normValue, bool asMidi) noexcept;
 
     /**
      * @brief Set the default value for a CC

@@ -30,7 +30,7 @@ float noteGain(const Region& region, int noteNumber, float velocity, const MidiS
  * @param midiState
  * @return float
  */
-float crossfadeGain(const Region& region, const MidiState& midiState) noexcept;
+float crossfadeGain(const Region& region, const MidiState& midiState, int triggerNumber) noexcept;
 
 /**
  * @brief Get the base volume of the region depending on which note has been
@@ -50,7 +50,7 @@ float baseVolumedB(const Region& region, const MidiState& midiState, int noteNum
  * @param midiState
  * @return uint32_t
  */
-uint64_t sampleOffset(const Region& region, const MidiState& midiState) noexcept;
+uint64_t sampleOffset(const Region& region, const MidiState& midiState, int triggerNumber) noexcept;
 /**
  * @brief Get the region delay in seconds
  *
@@ -58,7 +58,7 @@ uint64_t sampleOffset(const Region& region, const MidiState& midiState) noexcept
  * @param midiState
  * @return float
  */
-float regionDelay(const Region& region, const MidiState& midiState) noexcept;
+float regionDelay(const Region& region, const MidiState& midiState, int triggerNumber) noexcept;
 /**
  * @brief Get the index of the sample end, either natural end or forced
  * loop.
@@ -67,14 +67,14 @@ float regionDelay(const Region& region, const MidiState& midiState) noexcept;
  * @param midiState
  * @return uint32_t
  */
-uint32_t sampleEnd(const Region& region, MidiState& midiState) noexcept;
+uint32_t sampleEnd(const Region& region, MidiState& midiState, int triggerNumber) noexcept;
 
 /**
  * @brief Computes the gain value related to the velocity of the note
  *
  * @return float
  */
-float velocityCurve(const Region& region, float velocity, const MidiState& midiState, const CurveSet& curveSet) noexcept;
+float velocityCurve(const Region& region, float velocity, const MidiState& midiState, const CurveSet& curveSet, int triggerNumber) noexcept;
 
 /**
  * @brief Returns the start of the loop for a given region
@@ -83,7 +83,7 @@ float velocityCurve(const Region& region, float velocity, const MidiState& midiS
  * @param midiState
  * @return uint32_t
  */
-uint32_t loopStart(const Region& region, MidiState& midiState) noexcept;
+uint32_t loopStart(const Region& region, MidiState& midiState, int triggerNumber) noexcept;
 
 /**
  * @brief Returns the end of the loop for a given region
@@ -92,7 +92,7 @@ uint32_t loopStart(const Region& region, MidiState& midiState) noexcept;
  * @param midiState
  * @return uint32_t
  */
-uint32_t loopEnd(const Region& region, MidiState& midiState) noexcept;
+uint32_t loopEnd(const Region& region, MidiState& midiState, int triggerNumber) noexcept;
 
 /**
  * @brief Get the base pitch of the region depending on which note has been
@@ -105,6 +105,6 @@ uint32_t loopEnd(const Region& region, MidiState& midiState) noexcept;
  * @param curveSet
  * @return float
  */
-float basePitchVariation(const Region& region, float noteNumber, float velocity, const MidiState& midiState, const CurveSet& curveSet) noexcept;
+float basePitchVariation(const Region& region, float noteNumber, float velocity, const MidiState& midiState, const CurveSet& curveSet, int triggerNumber) noexcept;
 
 }

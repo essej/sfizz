@@ -16,7 +16,7 @@
 namespace sfz {
 
 struct ControllerSource::Impl {
-    float getLastTransformedValue(uint16_t cc, uint8_t curve) const noexcept;
+    float getLastTransformedValue(int triggerNote, uint16_t cc, uint8_t curve) const noexcept;
     double sampleRate_ = config::defaultSampleRate;
     Resources* res_ = nullptr;
     VoiceManager* voiceManager_ = nullptr;
@@ -34,11 +34,11 @@ ControllerSource::~ControllerSource()
 {
 }
 
-float ControllerSource::Impl::getLastTransformedValue(uint16_t cc, uint8_t curveIndex) const noexcept
+float ControllerSource::Impl::getLastTransformedValue(int triggerNote, uint16_t cc, uint8_t curveIndex) const noexcept
 {
     ASSERT(res_);
     const Curve& curve = res_->getCurves().getCurve(curveIndex);
-    const auto lastCCValue = res_->getMidiState().getCCValue(cc);
+    const auto lastCCValue = triggerNote >= 0 ? res_->getMidiState().getPerNoteCCValue(triggerNote, cc) : res_->getMidiState().getCCValue(cc);
     return curve.evalNormalized(lastCCValue);
 }
 
@@ -46,7 +46,14 @@ void ControllerSource::resetSmoothers()
 {
     for (auto& item : impl_->smoother_) {
         const ModKey::Parameters p = item.first.parameters();
-        item.second.reset(impl_->getLastTransformedValue(p.cc, p.curve));
+        if (p.pernote) {
+            // XXX - no way to get a pernote CC value without any note context
+            // in fact, the smoother stuff is probably not going to work if the same one
+            // is used for different notes
+            item.second.reset(impl_->getLastTransformedValue(-1, p.cc, p.curve)); // XXX
+        } else {
+            item.second.reset(impl_->getLastTransformedValue(-1, p.cc, p.curve)); // XXX
+        }
     }
 }
 
@@ -70,14 +77,19 @@ void ControllerSource::setSamplesPerBlock(unsigned count)
 
 void ControllerSource::init(const ModKey& sourceKey, NumericId<Voice> voiceId, unsigned delay)
 {
-    (void)voiceId;
     (void)delay;
 
     const ModKey::Parameters p = sourceKey.parameters();
     if (p.smooth > 0) {
         Smoother s;
         s.setSmoothing(p.smooth, impl_->sampleRate_);
-        s.reset(impl_->getLastTransformedValue(p.cc, p.curve));
+        if (p.pernote) {
+            const auto voice = impl_->voiceManager_->getVoiceById(voiceId);
+            s.reset(impl_->getLastTransformedValue(voice ? voice->getTriggerEvent().number : -1, p.cc, p.curve));
+        }
+        else {
+            s.reset(impl_->getLastTransformedValue(-1, p.cc, p.curve));
+        }
         impl_->smoother_[sourceKey] = s;
     }
     else {
@@ -85,7 +97,7 @@ void ControllerSource::init(const ModKey& sourceKey, NumericId<Voice> voiceId, u
     }
 }
 
-void ControllerSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool ControllerSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     const ModKey::Parameters p = sourceKey.parameters();
     const Resources& res = *impl_->res_;
@@ -186,15 +198,35 @@ void ControllerSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceI
         }
     case ExtendedCCs::pitchBend: // fallthrough
     case ExtendedCCs::channelAftertouch: {
-            const EventVector& events = ms.getCCEvents(p.cc);
-            linearEnvelope(events, buffer, [](float x) { return x; }, p.step);
-            canShortcut = events.size() == 1;
+            if (p.pernote) {
+                const auto voice = impl_->voiceManager_->getVoiceById(voiceId);
+                if (!voice || !ms.isPerNoteCCActive(voice->getTriggerEvent().number, p.cc)) {
+                    return false;
+                }
+                const EventVector& events = ms.getPerNoteCCEvents(voice->getTriggerEvent().number, p.cc);
+                linearEnvelope(events, buffer, [](float x) { return x; }, p.step);
+                canShortcut = events.size() == 1;
+            } else {
+                const EventVector& events = ms.getCCEvents(p.cc);
+                linearEnvelope(events, buffer, [](float x) { return x; }, p.step);
+                canShortcut = events.size() == 1;
+            }
             break;
         }
     default: {
-            const EventVector& events = ms.getCCEvents(p.cc);
-            linearEnvelope(events, buffer, transformValue, p.step);
-            canShortcut = events.size() == 1;
+            if (p.pernote) {
+                const auto voice = impl_->voiceManager_->getVoiceById(voiceId);
+                if (!voice || !ms.isPerNoteCCActive(voice->getTriggerEvent().number, p.cc)) {
+                    return false;
+                }
+                const EventVector& events = ms.getPerNoteCCEvents(voice->getTriggerEvent().number, p.cc);
+                linearEnvelope(events, buffer, transformValue, p.step);
+                canShortcut = events.size() == 1;
+            } else {
+                const EventVector& events = ms.getCCEvents(p.cc);
+                linearEnvelope(events, buffer, transformValue, p.step);
+                canShortcut = events.size() == 1;
+            }
         }
     }
 
@@ -203,6 +235,7 @@ void ControllerSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceI
         Smoother& s = it->second;
         s.process(buffer, buffer, canShortcut);
     }
+    return true;
 }
 
 } // namespace sfz

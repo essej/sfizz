@@ -231,7 +231,7 @@ struct Region {
      * @param id  the ID of the modulation target, which must be regional
      * @return absl::optional<float>
      */
-    absl::optional<float> ccModDepth(int cc, ModId id, uint8_t N = 0, uint8_t X = 0, uint8_t Y = 0, uint8_t Z = 0) const noexcept;
+    absl::optional<float> ccModDepth(int cc, ModId id, uint8_t N = 0, uint8_t X = 0, uint8_t Y = 0, uint8_t Z = 0, bool perNote=false) const noexcept;
 
     /**
      * @brief Extract the source parameters of the unique connection identified
@@ -242,7 +242,7 @@ struct Region {
      * @param id  the ID of the modulation target, which must be regional
      * @return absl::optional<ModKey::Parameters>
      */
-    absl::optional<ModKey::Parameters> ccModParameters(int cc, ModId id, uint8_t N = 0, uint8_t X = 0, uint8_t Y = 0, uint8_t Z = 0) const noexcept;
+    absl::optional<ModKey::Parameters> ccModParameters(int cc, ModId id, uint8_t N = 0, uint8_t X = 0, uint8_t Y = 0, uint8_t Z = 0, bool perNote=false) const noexcept;
 
     const NumericId<Region> id;
 
@@ -412,7 +412,7 @@ struct Region {
     std::vector<Connection> connections;
     Connection* getConnection(const ModKey& source, const ModKey& target);
     Connection& getOrCreateConnection(const ModKey& source, const ModKey& target);
-    Connection* getConnectionFromCC(int sourceCC, const ModKey& target);
+    Connection* getConnectionFromCC(int sourceCC, const ModKey& target, bool sourcePerNote=false);
 
     // Parent
     RegionSet* parent { nullptr };

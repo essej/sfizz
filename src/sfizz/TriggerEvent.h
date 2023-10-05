@@ -19,6 +19,7 @@ struct TriggerEvent
     TriggerEventType type;
     int number;
     float value;
+    float value2 = -1.0f;
 };
 
 }

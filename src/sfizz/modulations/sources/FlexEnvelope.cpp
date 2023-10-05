@@ -87,24 +87,25 @@ void FlexEnvelopeSource::cancelRelease(const ModKey& sourceKey, NumericId<Voice>
     eg->cancelRelease(delay);
 }
 
-void FlexEnvelopeSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool FlexEnvelopeSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     unsigned egIndex = sourceKey.parameters().N;
 
     Voice* voice = voiceManager_.getVoiceById(voiceId);
     if (!voice) {
         ASSERTFALSE;
-        return;
+        return false;
     }
 
     const Region* region = voice->getRegion();
     if (egIndex >= region->flexEGs.size()) {
         ASSERTFALSE;
-        return;
+        return false;
     }
 
     FlexEnvelope* eg = voice->getFlexEG(egIndex);
     eg->process(buffer);
+    return true;
 }
 
 } // namespace sfz

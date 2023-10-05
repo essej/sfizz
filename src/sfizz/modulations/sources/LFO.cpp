@@ -64,15 +64,14 @@ void LFOSource::init(const ModKey& sourceKey, NumericId<Voice> voiceId, unsigned
     lfo->start(delay);
 }
 
-void LFOSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool LFOSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     const unsigned lfoIndex = sourceKey.parameters().N;
 
     Voice* voice = voiceManager_.getVoiceById(voiceId);
     if (!voice) {
         ASSERTFALSE;
-        fill(buffer, 0.0f);
-        return;
+        return false;
     }
 
     const Region* region = voice->getRegion();
@@ -92,18 +91,18 @@ void LFOSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl
         {
             if (lfoIndex >= region->lfos.size()) {
                 ASSERTFALSE;
-                fill(buffer, 0.0f);
-                return;
+                return false;
             }
             lfo = voice->getLFO(lfoIndex);
         }
         break;
     default:
         ASSERTFALSE;
-        return;
+        return false;
     }
 
     lfo->process(buffer);
+    return true;
 }
 
 } // namespace sfz

@@ -23,12 +23,13 @@ void ChannelAftertouchSource::init(const ModKey& sourceKey, NumericId<Voice> voi
     UNUSED(delay);
 }
 
-void ChannelAftertouchSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
+bool ChannelAftertouchSource::generate(const ModKey& sourceKey, NumericId<Voice> voiceId, absl::Span<float> buffer)
 {
     UNUSED(sourceKey);
     UNUSED(voiceId);
     const EventVector& events = midiState_.getChannelAftertouchEvents();
     linearEnvelope(events, buffer, [](float x) { return x; });
+    return true;
 }
 
 } // namespace sfz

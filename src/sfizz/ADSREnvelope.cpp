@@ -38,12 +38,13 @@ Float ADSREnvelope::secondsToExpRate(Float timeInSeconds) const noexcept
     return std::exp(Float(-9.0) / (timeInSeconds * sampleRate));
 };
 
-void ADSREnvelope::reset(const EGDescription& desc, const Region& region, int delay, float velocity, float sampleRate) noexcept
+void ADSREnvelope::reset(const EGDescription& desc, const Region& region, int delay, const TriggerEvent& trigEvent, float sampleRate) noexcept
 {
     this->sampleRate = sampleRate;
     desc_ = &desc;
     dynamic_ = desc.dynamic;
-    triggerVelocity_ = velocity;
+    triggerVelocity_ = trigEvent.value;
+    triggerNumber_ = trigEvent.number;
     currentState = State::Delay; // Has to be before the update
     updateValues(delay);
     releaseDelay = 0;
@@ -58,13 +59,13 @@ void ADSREnvelope::reset(const EGDescription& desc, const Region& region, int de
 void ADSREnvelope::updateValues(int delay) noexcept
 {
     if (currentState == State::Delay)
-        this->delay = delay + secondsToSamples(desc_->getDelay(midiState_, triggerVelocity_, delay));
-    this->attackStep = secondsToLinRate(desc_->getAttack(midiState_, triggerVelocity_, delay));
-    this->decayRate = secondsToExpRate(desc_->getDecay(midiState_, triggerVelocity_, delay));
-    this->releaseRate = secondsToExpRate(desc_->getRelease(midiState_, triggerVelocity_, delay));
-    this->hold = secondsToSamples(desc_->getHold(midiState_, triggerVelocity_, delay));
-    this->sustain = clamp(desc_->getSustain(midiState_, triggerVelocity_, delay), 0.0f, 1.0f);
-    this->start = clamp(desc_->getStart(midiState_, triggerVelocity_, delay), 0.0f, 1.0f);
+        this->delay = delay + secondsToSamples(desc_->getDelay(midiState_, triggerVelocity_, triggerNumber_,  delay));
+    this->attackStep = secondsToLinRate(desc_->getAttack(midiState_, triggerVelocity_, triggerNumber_, delay));
+    this->decayRate = secondsToExpRate(desc_->getDecay(midiState_, triggerVelocity_, triggerNumber_, delay));
+    this->releaseRate = secondsToExpRate(desc_->getRelease(midiState_, triggerVelocity_, triggerNumber_, delay));
+    this->hold = secondsToSamples(desc_->getHold(midiState_, triggerVelocity_, triggerNumber_, delay));
+    this->sustain = clamp(desc_->getSustain(midiState_, triggerVelocity_, triggerNumber_, delay), 0.0f, 1.0f);
+    this->start = clamp(desc_->getStart(midiState_, triggerVelocity_, triggerNumber_, delay), 0.0f, 1.0f);
     sustainThreshold = this->sustain + config::virtuallyZero;
 }
 
