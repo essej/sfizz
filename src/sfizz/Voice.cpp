@@ -439,7 +439,7 @@ bool Voice::startVoice(Layer* layer, int delay, const TriggerEvent& event) noexc
         delay = 0;
 
     impl.triggerDelay_ = delay;
-    impl.initialDelay_ = delay + static_cast<int>(regionDelay(region, midiState) * impl.sampleRate_);
+    impl.initialDelay_ = delay + static_cast<int>(regionDelay(region, midiState, impl.triggerEvent_.number) * impl.sampleRate_);
     impl.startTimestamp_ = midiState.getInternalClock() + impl.initialDelay_; // need to set this before switchState
 
     impl.switchState(State::playing);
@@ -529,8 +529,6 @@ bool Voice::startVoice(Layer* layer, int delay, const TriggerEvent& event) noexc
         impl.equalizers_[i].setup(region, i, impl.triggerEvent_.value);
     }
 
-    impl.triggerDelay_ = delay;
-    impl.initialDelay_ = delay + static_cast<int>(regionDelay(region, midiState, impl.triggerEvent_.number) * impl.sampleRate_);
     impl.baseFrequency_ = pitchOverridden ? equalTuning.getFrequencyOfKey(basePitch)
                                           : tuning.getFrequencyOfKey(impl.triggerEvent_.number); // this is unused, should we bother?
     impl.sampleEnd_ = int(sampleEnd(region, midiState, impl.triggerEvent_.number));
