@@ -139,25 +139,28 @@ void sfz::MidiState::flushEvents() noexcept
 
 void sfz::MidiState::setSamplesPerBlock(int samplesPerBlock) noexcept
 {
-    auto updateEventBufferSize = [=] (EventVector& events) {
+    const int smallEventsPerBlock = std::max(samplesPerBlock / 128, 2); // just a few
+    const int eventsPerBlock = std::max(samplesPerBlock / 48, 4); // about 1ms of resolution on average
+
+    auto updateEventBufferSize = [] (EventVector& events, int evCount) {
         events.shrink_to_fit();
-        events.reserve(samplesPerBlock);
+        events.reserve(evCount);
     };
     this->samplesPerBlock = samplesPerBlock;
     for (auto& events: ccEvents)
-        updateEventBufferSize(events);
+        updateEventBufferSize(events, eventsPerBlock);
 
     for (auto& events: polyAftertouchEvents)
-        updateEventBufferSize(events);
+        updateEventBufferSize(events, eventsPerBlock);
 
-    updateEventBufferSize(pitchEvents);
-    updateEventBufferSize(channelAftertouchEvents);
+    updateEventBufferSize(pitchEvents, eventsPerBlock);
+    updateEventBufferSize(channelAftertouchEvents, eventsPerBlock);
 
     for (auto& noteState : perNoteState) {
         for (auto& events: noteState.ccEvents)
-            updateEventBufferSize(events);
-        updateEventBufferSize(noteState.pitchBendEvents);
-        updateEventBufferSize(noteState.basePitchEvents);
+            updateEventBufferSize(events, smallEventsPerBlock);
+        updateEventBufferSize(noteState.pitchBendEvents, smallEventsPerBlock);
+        updateEventBufferSize(noteState.basePitchEvents, smallEventsPerBlock);
     }
 }
 
