@@ -325,7 +325,7 @@ if(JACK_FOUND)
 endif()
 
 # The Qt library (CaptureEG devtool)
-find_package(Qt5 COMPONENTS Widgets)
+# find_package(Qt5 COMPONENTS Widgets)
 
 # The fmidi library
 add_library(sfizz_fmidi STATIC
